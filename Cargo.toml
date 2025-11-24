@@ -1,0 +1,12 @@
+[package]
+name = "xnn"
+version = "0.1.0"
+edition = "2024"
+authors = ["stdfox <stdfox@protonmail.com>"]
+license = "MIT"
+description = "A tiny open-source ML framework built from scratch in Rust"
+repository = "https://github.com/stdfox/xnn"
+readme = "README.md"
+
+[lints.rust]
+unsafe_code = "forbid"

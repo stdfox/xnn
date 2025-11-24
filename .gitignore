@@ -1,0 +1,8 @@
+# see definitions at https://git-scm.com/docs/gitignore
+/target
+*.lock
+.DS_Store
+.vscode
+.idea
+.vim
+.env
