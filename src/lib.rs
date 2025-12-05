@@ -8,6 +8,7 @@
 //! - [`GpuContext`]: Central GPU context for buffer and pipeline management.
 //! - [`Buffer`]: GPU buffer for storing element data.
 //! - [`Element`]: Trait for GPU-compatible types (f32, i32, u32).
+//! - [`FloatElement`]: Trait for floating-point types (f32).
 //! - [`Error`]: Error type for GPU operations.
 
 #![warn(missing_docs)]
@@ -22,5 +23,5 @@ mod element;
 mod error;
 
 pub use device::{Buffer, GpuContext};
-pub use element::Element;
+pub use element::{Element, FloatElement};
 pub use error::Error;

@@ -34,5 +34,157 @@ fn bench_fill(c: &mut Criterion) {
     group.finish();
 }
 
-criterion::criterion_group!(benches, bench_fill);
+fn bench_add(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/add");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer::<f32>(len).unwrap();
+        let c = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 1.0f32).unwrap();
+        kernel::fill(&ctx, &b, 2.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                let _ = kernel::add(&ctx, &a, &b, &c).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_sub(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/sub");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer::<f32>(len).unwrap();
+        let c = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 5.0f32).unwrap();
+        kernel::fill(&ctx, &b, 2.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                let _ = kernel::sub(&ctx, &a, &b, &c).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_mul(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/mul");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer::<f32>(len).unwrap();
+        let c = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 2.0f32).unwrap();
+        kernel::fill(&ctx, &b, 3.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                let _ = kernel::mul(&ctx, &a, &b, &c).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_div(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/div");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer::<f32>(len).unwrap();
+        let c = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 6.0f32).unwrap();
+        kernel::fill(&ctx, &b, 2.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                let _ = kernel::div(&ctx, &a, &b, &c).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_rem(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/rem");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer::<f32>(len).unwrap();
+        let c = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 7.0f32).unwrap();
+        kernel::fill(&ctx, &b, 3.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                let _ = kernel::rem(&ctx, &a, &b, &c).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_pow(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/pow");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer::<f32>(len).unwrap();
+        let c = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 2.0f32).unwrap();
+        kernel::fill(&ctx, &b, 3.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                let _ = kernel::pow(&ctx, &a, &b, &c).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
+criterion::criterion_group!(
+    benches, bench_fill, bench_add, bench_sub, bench_mul, bench_div, bench_rem, bench_pow
+);
 criterion::criterion_main!(benches);

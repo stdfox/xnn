@@ -2,6 +2,9 @@
 //!
 //! The [`Element`] trait defines types that can be stored in GPU buffers
 //! and used in compute shaders. Implemented for f32, i32, and u32.
+//!
+//! The [`FloatElement`] trait is a subset of [`Element`] for floating-point
+//! types only. Used for operations like `pow` that require floats.
 
 use bytemuck::{Pod, Zeroable};
 
@@ -31,3 +34,10 @@ impl Element for u32 {
         "u32"
     }
 }
+
+/// Trait for floating-point GPU-compatible types.
+///
+/// Used for operations that only work with floats, such as `pow`.
+pub trait FloatElement: Element {}
+
+impl FloatElement for f32 {}
