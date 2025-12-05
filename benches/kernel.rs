@@ -184,7 +184,39 @@ fn bench_pow(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_gemm(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/gemm");
+    group.warm_up_time(Duration::from_millis(3000));
+    group.measurement_time(Duration::from_secs(10));
+    group.sample_size(50);
+
+    for &size in SIZES {
+        if size >= 4096 {
+            group.sample_size(20);
+        }
+
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer::<f32>(len).unwrap();
+        let c = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 1.0f32).unwrap();
+        kernel::fill(&ctx, &b, 1.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                let _ = kernel::gemm(&ctx, &a, &b, &c, size, size, size).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
 criterion::criterion_group!(
-    benches, bench_fill, bench_add, bench_sub, bench_mul, bench_div, bench_rem, bench_pow
+    benches, bench_fill, bench_add, bench_sub, bench_mul, bench_div, bench_rem, bench_pow,
+    bench_gemm
 );
 criterion::criterion_main!(benches);

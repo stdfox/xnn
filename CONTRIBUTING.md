@@ -49,7 +49,7 @@ cargo bench --bench kernel -- kernel/gemm
 Save baseline before making changes (**run it at least twice** to ensure GPU warmup for more stable results):
 
 ```bash
-cargo bench --bench kernel -- --noplot --save-baseline main
+cargo bench --bench kernel -- --noplot --quiet --save-baseline main
 ```
 
 Compare current performance against baseline:
