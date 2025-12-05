@@ -207,7 +207,30 @@ fn bench_gemm(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
-                let _ = kernel::gemm(&ctx, &a, &b, &c, size, size, size).unwrap();
+                kernel::gemm(&ctx, &a, &b, &c, size, size, size).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_sum(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/sum");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let input = ctx.create_buffer::<f32>(len).unwrap();
+        let output = ctx.create_buffer::<f32>(1).unwrap();
+
+        kernel::fill(&ctx, &input, 1.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                kernel::sum(&ctx, &input, &output).unwrap();
             });
         });
     }
@@ -217,6 +240,6 @@ fn bench_gemm(c: &mut Criterion) {
 
 criterion::criterion_group!(
     benches, bench_fill, bench_add, bench_sub, bench_mul, bench_div, bench_rem, bench_pow,
-    bench_gemm
+    bench_gemm, bench_sum
 );
 criterion::criterion_main!(benches);

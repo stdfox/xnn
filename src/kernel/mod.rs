@@ -8,14 +8,17 @@
 //! - [`arithmetic`]: Element-wise arithmetic (add, sub, mul, div, rem, pow)
 //! - [`initializer`]: Buffer initialization (fill)
 //! - [`linalg`]: Linear algebra (gemm)
+//! - [`reduction`]: Reduction operations (sum)
 
 pub mod arithmetic;
 pub mod initializer;
 pub mod linalg;
+pub mod reduction;
 
 pub use arithmetic::{add, div, mul, pow, rem, sub};
 pub use initializer::fill;
 pub use linalg::gemm;
+pub use reduction::sum;
 
 use crate::Element;
 use crate::GpuContext;
