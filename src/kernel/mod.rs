@@ -18,10 +18,21 @@ pub use initializer::fill;
 pub use linalg::gemm;
 
 use crate::Element;
+use crate::GpuContext;
 use crate::device::Buffer;
 use crate::error::Error;
 
+/// Debug assertion that buffer belongs to the given context.
+#[inline]
+pub(crate) fn debug_assert_same_device<T: Element>(ctx: &GpuContext, buf: &Buffer<T>, name: &str) {
+    debug_assert!(
+        ctx.adapter_index() == buf.adapter_index(),
+        "buffer `{name}` belongs to a different device"
+    );
+}
+
 /// Asserts that two buffers have the same length.
+#[inline]
 pub(crate) fn assert_same_len<T: Element>(
     a: &Buffer<T>,
     b: &Buffer<T>,
@@ -38,6 +49,7 @@ pub(crate) fn assert_same_len<T: Element>(
 }
 
 /// Asserts that buffer length matches expected size.
+#[inline]
 pub(crate) fn assert_len<T: Element>(
     buf: &Buffer<T>,
     expected: usize,

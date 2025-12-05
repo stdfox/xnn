@@ -9,17 +9,24 @@ pub struct Buffer<T: Element> {
     #[allow(clippy::struct_field_names)]
     buffer: wgpu::Buffer,
     len: usize,
+    adapter_index: usize,
     _marker: PhantomData<T>,
 }
 
 impl<T: Element> Buffer<T> {
     /// Creates a new buffer wrapper.
-    pub(crate) fn new(buffer: wgpu::Buffer, len: usize) -> Self {
+    pub(crate) fn new(buffer: wgpu::Buffer, len: usize, adapter_index: usize) -> Self {
         Self {
             buffer,
             len,
+            adapter_index,
             _marker: PhantomData,
         }
+    }
+
+    /// Returns the adapter index this buffer belongs to.
+    pub(crate) fn adapter_index(&self) -> usize {
+        self.adapter_index
     }
 
     /// Returns the number of elements.
@@ -45,7 +52,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn new() {
+    fn test_new() {
         let ctx = GpuContext::default();
         let wgpu_buf = ctx.device().create_buffer(&wgpu::BufferDescriptor {
             label: None,
@@ -53,20 +60,28 @@ mod tests {
             usage: wgpu::BufferUsages::STORAGE,
             mapped_at_creation: false,
         });
-        let buf: Buffer<f32> = Buffer::new(wgpu_buf, 64);
+        let buf: Buffer<f32> = Buffer::new(wgpu_buf, 64, ctx.adapter_index());
+        assert_eq!(buf.adapter_index(), ctx.adapter_index());
         assert_eq!(buf.inner().size(), 256);
         assert_eq!(buf.len(), 64);
     }
 
     #[test]
-    fn len() {
+    fn test_adapter_index() {
+        let ctx = GpuContext::default();
+        let buf = ctx.create_buffer::<f32>(4).unwrap();
+        assert_eq!(buf.adapter_index(), ctx.adapter_index());
+    }
+
+    #[test]
+    fn test_len() {
         let ctx = GpuContext::default();
         let buf = ctx.create_buffer::<f32>(4).unwrap();
         assert_eq!(buf.len(), 4);
     }
 
     #[test]
-    fn is_empty() {
+    fn test_is_empty() {
         let ctx = GpuContext::default();
 
         let empty = ctx.create_buffer::<f32>(0).unwrap();
@@ -77,7 +92,7 @@ mod tests {
     }
 
     #[test]
-    fn inner() {
+    fn test_inner() {
         let ctx = GpuContext::default();
         let buf = ctx.create_buffer::<f32>(4).unwrap();
         assert_eq!(buf.inner().size(), 16);

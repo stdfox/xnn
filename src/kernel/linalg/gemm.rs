@@ -5,7 +5,7 @@
 
 use wgpu::util::DeviceExt as _;
 
-use crate::kernel::assert_len;
+use crate::kernel::{assert_len, debug_assert_same_device};
 use crate::{Buffer, Error, FloatElement, GpuContext};
 
 /// Block size for register tiling (each thread computes BM×BN elements).
@@ -14,7 +14,7 @@ const BLOCK_SIZE: u32 = 4;
 /// Workgroup dimensions.
 const WG_SIZE: u32 = 16;
 
-/// Output tile size (WG_SIZE * BLOCK_SIZE).
+/// Output tile size (`WG_SIZE * BLOCK_SIZE`).
 const TILE_SIZE: u32 = WG_SIZE * BLOCK_SIZE;
 
 /// K-dimension tile size.
@@ -39,7 +39,13 @@ const MAX_WORKGROUPS_PER_DISPATCH: u32 = 65536;
 /// # Errors
 ///
 /// Returns [`Error::Kernel`](crate::Error::Kernel) if buffer sizes do not match
-/// matrix dimensions.
+/// matrix dimensions. Returns [`Error::Device`](crate::Error::Device) if matrix
+/// dimensions exceed `u32::MAX`.
+///
+/// # Panics
+///
+/// Debug builds panic if any buffer belongs to a different device than `ctx`.
+#[allow(clippy::many_single_char_names)]
 pub fn gemm<T: FloatElement>(
     ctx: &GpuContext,
     a: &Buffer<T>,
@@ -49,6 +55,9 @@ pub fn gemm<T: FloatElement>(
     k: usize,
     n: usize,
 ) -> Result<(), Error> {
+    debug_assert_same_device(ctx, a, "a");
+    debug_assert_same_device(ctx, b, "b");
+    debug_assert_same_device(ctx, c, "c");
     assert_len(a, m * k, "a")?;
     assert_len(b, k * n, "b")?;
     assert_len(c, m * n, "c")?;
@@ -57,10 +66,14 @@ pub fn gemm<T: FloatElement>(
         return Ok(());
     }
 
+    let m32 = u32::try_from(m).map_err(|_| Error::Device("m exceeds u32::MAX".into()))?;
+    let k32 = u32::try_from(k).map_err(|_| Error::Device("k exceeds u32::MAX".into()))?;
+    let n32 = u32::try_from(n).map_err(|_| Error::Device("n exceeds u32::MAX".into()))?;
+
     let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
 
-    let m_tiles = (m as u32).div_ceil(TILE_SIZE);
-    let n_tiles = (n as u32).div_ceil(TILE_SIZE);
+    let m_tiles = m32.div_ceil(TILE_SIZE);
+    let n_tiles = n32.div_ceil(TILE_SIZE);
     let total_workgroups = m_tiles * n_tiles;
 
     let num_dispatches = total_workgroups.div_ceil(MAX_WORKGROUPS_PER_DISPATCH);
@@ -77,7 +90,7 @@ pub fn gemm<T: FloatElement>(
         }
 
         let col_start = n_tile_start * TILE_SIZE;
-        let dims = [m as u32, k as u32, n as u32, col_start];
+        let dims = [m32, k32, n32, col_start];
         let dims_buffer = ctx
             .device()
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -139,6 +152,7 @@ pub fn gemm<T: FloatElement>(
     Ok(())
 }
 
+#[allow(clippy::too_many_lines)]
 fn create_shader_source<T: FloatElement>() -> String {
     let ty = T::wgsl_type();
     let vec4_ty = format!("vec4<{ty}>");

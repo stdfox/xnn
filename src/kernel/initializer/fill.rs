@@ -4,6 +4,7 @@
 
 use wgpu::util::DeviceExt as _;
 
+use crate::kernel::debug_assert_same_device;
 use crate::{Buffer, Element, Error, GpuContext};
 
 /// Workgroup size for the fill kernel.
@@ -20,7 +21,13 @@ const MAX_WORKGROUPS_PER_DIM: u32 = 65535;
 ///
 /// Returns [`Error::Device`](crate::Error::Device) if the buffer length exceeds u32
 /// or the GPU operation fails.
+///
+/// # Panics
+///
+/// Debug builds panic if the buffer belongs to a different device than `ctx`.
 pub fn fill<T: Element>(ctx: &GpuContext, buf: &Buffer<T>, value: T) -> Result<(), Error> {
+    debug_assert_same_device(ctx, buf, "buf");
+
     if buf.is_empty() {
         return Ok(());
     }
@@ -120,6 +127,8 @@ fn create_pipeline<T: Element>(device: &wgpu::Device) -> wgpu::ComputePipeline {
 
 #[cfg(test)]
 mod tests {
+    use std::f32::consts::PI;
+
     use approx::assert_relative_eq;
 
     use super::*;
@@ -151,15 +160,15 @@ mod tests {
         // large
         let len = 4096 * 4096;
         let buf = ctx.create_buffer::<f32>(len).unwrap();
-        fill(&ctx, &buf, 3.14f32).unwrap();
+        fill(&ctx, &buf, PI).unwrap();
         let result = ctx.read_buffer(&buf).unwrap();
         for val in &result {
-            assert_relative_eq!(*val, 3.14, epsilon = 1e-5);
+            assert_relative_eq!(*val, PI, epsilon = 1e-5);
         }
 
         // empty
         let buf = ctx.create_buffer::<f32>(0).unwrap();
-        fill(&ctx, &buf, 3.14f32).unwrap();
+        fill(&ctx, &buf, PI).unwrap();
         assert!(ctx.read_buffer(&buf).unwrap().is_empty());
     }
 }

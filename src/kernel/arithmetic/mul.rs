@@ -2,7 +2,7 @@
 //!
 //! Multiplies two buffers element-wise using a compute shader.
 
-use crate::kernel::assert_same_len;
+use crate::kernel::{assert_same_len, debug_assert_same_device};
 use crate::{Buffer, Element, Error, GpuContext};
 
 /// Workgroup size for the mul kernel.
@@ -20,12 +20,19 @@ const MAX_WORKGROUPS_PER_DIM: u32 = 65535;
 /// Returns [`Error::Kernel`](crate::Error::Kernel) if buffer lengths do not match.
 /// Returns [`Error::Device`](crate::Error::Device) if buffer length exceeds u32
 /// or the GPU operation fails.
+///
+/// # Panics
+///
+/// Debug builds panic if any buffer belongs to a different device than `ctx`.
 pub fn mul<T: Element>(
     ctx: &GpuContext,
     a: &Buffer<T>,
     b: &Buffer<T>,
     c: &Buffer<T>,
 ) -> Result<(), Error> {
+    debug_assert_same_device(ctx, a, "a");
+    debug_assert_same_device(ctx, b, "b");
+    debug_assert_same_device(ctx, c, "c");
     assert_same_len(a, b, "b")?;
     assert_same_len(a, c, "c")?;
 
@@ -90,7 +97,7 @@ fn create_shader_source<T: Element>() -> String {
     let vec4_type = format!("vec4<{wgsl_type}>");
 
     format!(
-        r#"
+        r"
             @group(0) @binding(0) var<storage, read> a: array<{vec4_type}>;
             @group(0) @binding(1) var<storage, read> b: array<{vec4_type}>;
             @group(0) @binding(2) var<storage, read_write> c: array<{vec4_type}>;
@@ -102,7 +109,7 @@ fn create_shader_source<T: Element>() -> String {
                     c[tid] = a[tid] * b[tid];
                 }}
             }}
-        "#
+        "
     )
 }
 

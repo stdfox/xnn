@@ -111,7 +111,7 @@ impl GpuContext {
             mapped_at_creation: false,
         });
 
-        Ok(Buffer::new(buffer, len))
+        Ok(Buffer::new(buffer, len, self.inner.adapter_index))
     }
 
     /// Creates a GPU buffer initialized with data copied from a slice.
@@ -141,7 +141,7 @@ impl GpuContext {
                     | wgpu::BufferUsages::COPY_DST,
             });
 
-        Ok(Buffer::new(buffer, data.len()))
+        Ok(Buffer::new(buffer, data.len(), self.inner.adapter_index))
     }
 
     /// Copies buffer contents from GPU to CPU memory.
@@ -195,6 +195,11 @@ impl GpuContext {
         staging.unmap();
 
         Ok(result)
+    }
+
+    /// Returns the adapter index.
+    pub(crate) fn adapter_index(&self) -> usize {
+        self.inner.adapter_index
     }
 
     /// Returns the wgpu device.
@@ -289,30 +294,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn new() {
+    fn test_new() {
         let ctx = GpuContext::new(0).unwrap();
         assert_eq!(ctx.inner.adapter_index, 0);
     }
 
     #[test]
-    fn create_buffer() {
+    fn test_create_buffer() {
         let ctx = GpuContext::default();
         let buf = ctx.create_buffer::<f32>(4).unwrap();
+        assert_eq!(buf.adapter_index(), ctx.inner.adapter_index);
         assert_eq!(buf.len(), 4);
         assert_eq!(buf.inner().size(), 16);
     }
 
     #[test]
-    fn create_buffer_from_slice() {
+    fn test_create_buffer_from_slice() {
         let ctx = GpuContext::default();
         let buf = ctx
             .create_buffer_from_slice(&[1.0f32, 2.0, 3.0, 4.0])
             .unwrap();
+        assert_eq!(buf.adapter_index(), ctx.inner.adapter_index);
         assert_eq!(buf.len(), 4);
     }
 
     #[test]
-    fn read_buffer() {
+    fn test_read_buffer() {
         let ctx = GpuContext::default();
         let buf = ctx
             .create_buffer_from_slice(&[1.0f32, 2.0, 3.0, 4.0])
@@ -322,19 +329,25 @@ mod tests {
     }
 
     #[test]
-    fn device() {
+    fn test_adapter_index() {
+        let ctx = GpuContext::default();
+        let _ = ctx.adapter_index();
+    }
+
+    #[test]
+    fn test_device() {
         let ctx = GpuContext::default();
         let _ = ctx.device().limits();
     }
 
     #[test]
-    fn queue() {
+    fn test_queue() {
         let ctx = GpuContext::default();
         ctx.queue().submit(std::iter::empty());
     }
 
     #[test]
-    fn get_or_create_pipeline() {
+    fn test_get_or_create_pipeline() {
         let ctx = GpuContext::default();
         let pipeline = ctx.get_or_create_pipeline::<f32, _>(|device| {
             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -354,13 +367,13 @@ mod tests {
     }
 
     #[test]
-    fn default() {
+    fn test_default() {
         let ctx = GpuContext::default();
         assert!(!ctx.inner.adapter_name.is_empty());
     }
 
     #[test]
-    fn debug() {
+    fn test_debug() {
         let ctx = GpuContext::default();
         let debug = format!("{:?}", ctx);
         assert!(debug.contains("GpuContext"));
