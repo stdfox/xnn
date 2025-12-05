@@ -14,6 +14,9 @@
 
 extern crate alloc;
 
+#[doc(hidden)]
+pub mod kernel;
+
 mod device;
 mod element;
 mod error;

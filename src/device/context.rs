@@ -24,7 +24,6 @@ struct GpuContextInner {
     adapter_name: String,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    #[allow(dead_code)]
     cache: ComputePipelineCache,
 }
 
@@ -199,19 +198,16 @@ impl GpuContext {
     }
 
     /// Returns the wgpu device.
-    #[allow(dead_code)]
     pub(crate) fn device(&self) -> &wgpu::Device {
         &self.inner.device
     }
 
     /// Returns the wgpu queue.
-    #[allow(dead_code)]
     pub(crate) fn queue(&self) -> &wgpu::Queue {
         &self.inner.queue
     }
 
     /// Gets or creates a cached compute pipeline for type `T` and factory `F`.
-    #[allow(dead_code)]
     pub(crate) fn get_or_create_pipeline<T: 'static, F>(
         &self,
         create_fn: F,

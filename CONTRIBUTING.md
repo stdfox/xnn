@@ -26,6 +26,44 @@ Run all tests before submitting changes:
 cargo test
 ```
 
+## Benchmarks
+
+This project uses [Criterion](https://bheisler.github.io/criterion.rs/book/) for benchmarking Benchmarks help track performance regressions.
+
+### Running benchmarks
+
+Run all kernel benchmarks:
+
+```bash
+cargo bench --bench kernel
+```
+
+Run specific kernel benchmark:
+
+```bash
+cargo bench --bench kernel -- kernel/gemm
+```
+
+### Comparing performance
+
+Save baseline before making changes (**run it at least twice** to ensure GPU warmup for more stable results):
+
+```bash
+cargo bench --bench kernel -- --noplot --save-baseline main
+```
+
+Compare current performance against baseline:
+
+```bash
+cargo bench --bench kernel -- --noplot --baseline main
+```
+
+Compare specific kernel:
+
+```bash
+cargo bench --bench kernel -- kernel/gemm --noplot --baseline main
+```
+
 ## Commit Message Guidelines
 
 This project has a rule on how git commit messages can be formatted. It uses the simplified [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification. This leads to messages that are more readable and easy to follow when looking through the project history.
