@@ -4,11 +4,18 @@ This document outlines the development guidelines and conventions for this repos
 
 ## Code Style
 
-Before committing, ensure your code follows the project style:
+Before committing, ensure your code follows the project style.
+
+Format code:
 
 ```bash
 cargo fmt
-cargo clippy
+```
+
+Run linter with strict settings:
+
+```bash
+cargo clippy --all -- -W clippy::all -W clippy::pedantic -D warnings
 ```
 
 ## Testing

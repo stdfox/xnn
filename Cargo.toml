@@ -8,5 +8,11 @@ description = "A tiny open-source ML framework built from scratch in Rust"
 repository = "https://github.com/stdfox/xnn"
 readme = "README.md"
 
+[dependencies]
+bytemuck = { version = "~1.24", default-features = false }
+pollster = { version = "~0.4", default-features = false }
+thiserror = { version = "~2.0", default-features = false }
+wgpu = { version = "~27.0", default-features = true, features = ["wgsl"] }
+
 [lints.rust]
 unsafe_code = "forbid"
