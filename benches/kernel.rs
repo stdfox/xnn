@@ -184,6 +184,150 @@ fn bench_pow(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_add_scalar(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/add_scalar");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer_from_slice(&[2.0f32]).unwrap();
+        let c = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 1.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                kernel::add_scalar(&ctx, &a, &b, &c).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_sub_scalar(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/sub_scalar");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer_from_slice(&[3.0f32]).unwrap();
+        let c = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 10.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                kernel::sub_scalar(&ctx, &a, &b, &c).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_mul_scalar(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/mul_scalar");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer_from_slice(&[3.0f32]).unwrap();
+        let c = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 2.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                kernel::mul_scalar(&ctx, &a, &b, &c).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_div_scalar(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/div_scalar");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer_from_slice(&[3.0f32]).unwrap();
+        let c = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 12.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                kernel::div_scalar(&ctx, &a, &b, &c).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_rem_scalar(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/rem_scalar");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer_from_slice(&[3.0f32]).unwrap();
+        let c = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 10.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                kernel::rem_scalar(&ctx, &a, &b, &c).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
+fn bench_pow_scalar(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/pow_scalar");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer_from_slice(&[3.0f32]).unwrap();
+        let c = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 2.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                kernel::pow_scalar(&ctx, &a, &b, &c).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
 fn bench_gemm(c: &mut Criterion) {
     let ctx = GpuContext::default();
 
@@ -239,7 +383,21 @@ fn bench_sum(c: &mut Criterion) {
 }
 
 criterion::criterion_group!(
-    benches, bench_fill, bench_add, bench_sub, bench_mul, bench_div, bench_rem, bench_pow,
-    bench_gemm, bench_sum
+    benches,
+    bench_fill,
+    bench_add,
+    bench_sub,
+    bench_mul,
+    bench_div,
+    bench_rem,
+    bench_pow,
+    bench_add_scalar,
+    bench_sub_scalar,
+    bench_mul_scalar,
+    bench_div_scalar,
+    bench_rem_scalar,
+    bench_pow_scalar,
+    bench_gemm,
+    bench_sum
 );
 criterion::criterion_main!(benches);

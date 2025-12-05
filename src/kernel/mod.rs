@@ -5,7 +5,7 @@
 //!
 //! # Categories
 //!
-//! - [`arithmetic`]: Element-wise arithmetic (add, sub, mul, div, rem, pow)
+//! - [`arithmetic`]: Element-wise arithmetic (add, sub, mul, div, rem, pow, scalar variants)
 //! - [`initializer`]: Buffer initialization (fill)
 //! - [`linalg`]: Linear algebra (gemm)
 //! - [`reduction`]: Reduction operations (sum)
@@ -15,7 +15,10 @@ pub mod initializer;
 pub mod linalg;
 pub mod reduction;
 
-pub use arithmetic::{add, div, mul, pow, rem, sub};
+pub use arithmetic::{
+    add, add_scalar, div, div_scalar, mul, mul_scalar, pow, pow_scalar, rem, rem_scalar, sub,
+    sub_scalar,
+};
 pub use initializer::fill;
 pub use linalg::gemm;
 pub use reduction::sum;
