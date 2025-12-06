@@ -1,4 +1,4 @@
-//! GPU context management.
+//! GPU context management for buffer and pipeline operations.
 
 use alloc::sync::Arc;
 use core::any::TypeId;
@@ -30,8 +30,9 @@ struct GpuContextInner {
 /// Central GPU context for buffer and pipeline management.
 ///
 /// Wraps wgpu device and queue, caches compute pipelines by element type.
-/// Contexts are pooled by adapter index — creating multiple contexts for the
-/// same adapter returns the same underlying resources.
+///
+/// Contexts are pooled by adapter index — creating multiple contexts for
+/// the same adapter returns the same underlying resources.
 #[derive(Clone)]
 pub struct GpuContext {
     inner: Arc<GpuContextInner>,

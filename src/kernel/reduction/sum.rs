@@ -2,8 +2,8 @@
 //!
 //! Reduces a buffer to a single sum value using parallel reduction.
 
-use crate::kernel::{assert_len, debug_assert_same_device};
-use crate::{Buffer, Element, Error, GpuContext};
+use crate::kernel::{debug_assert_len, debug_assert_same_device};
+use crate::{Buffer, Element, GpuContext};
 
 /// Workgroup size for the sum kernel.
 const WORKGROUP_SIZE: u32 = 256;
@@ -12,34 +12,27 @@ const WORKGROUP_SIZE: u32 = 256;
 ///
 /// Reduces `input` to a single value stored in `output[0]`.
 ///
-/// # Errors
-///
-/// Returns [`Error::Kernel`](crate::Error::Kernel) if `output` length is not 1.
-/// Returns [`Error::Device`](crate::Error::Device) if buffer length exceeds u32
-/// or the GPU operation fails.
-///
 /// # Panics
 ///
-/// Debug builds panic if any buffer belongs to a different device than `ctx`.
-pub fn sum<T: Element>(
-    ctx: &GpuContext,
-    input: &Buffer<T>,
-    output: &Buffer<T>,
-) -> Result<(), Error> {
+/// - Input buffer length exceeds `u32::MAX`.
+/// - (debug) Output buffer length is not 1.
+/// - (debug) Any buffer belongs to a different device than `ctx`.
+pub fn sum<T: Element>(ctx: &GpuContext, input: &Buffer<T>, output: &Buffer<T>) {
     debug_assert_same_device(ctx, input, "input");
     debug_assert_same_device(ctx, output, "output");
-    assert_len(output, 1, "output")?;
+    debug_assert_len(output, 1, "output");
 
     if input.is_empty() {
         // Write zero to output for empty input
-        let zero_buf = ctx.create_buffer_from_slice(&[T::zeroed()])?;
-        copy_buffer(ctx, &zero_buf, output)?;
-        return Ok(());
+        let zero_buf = ctx
+            .create_buffer_from_slice(&[T::zeroed()])
+            .expect("failed to create zero buffer");
+        copy_buffer(ctx, &zero_buf, output);
+        return;
     }
 
-    let vec4_count = u32::try_from(input.len())
-        .map_err(|_| Error::Device("input length exceeds u32".into()))?
-        .div_ceil(4);
+    let len = u32::try_from(input.len()).expect("input length exceeds u32::MAX");
+    let vec4_count = len.div_ceil(4);
 
     // Calculate reduction chain: how many passes and buffer sizes needed
     let mut sizes = Vec::new();
@@ -53,7 +46,10 @@ pub fn sum<T: Element>(
     // Create intermediate buffers
     let mut intermediates: Vec<Buffer<T>> = Vec::with_capacity(sizes.len());
     for &num_workgroups in &sizes {
-        intermediates.push(ctx.create_buffer::<T>(num_workgroups as usize)?);
+        intermediates.push(
+            ctx.create_buffer::<T>(num_workgroups as usize)
+                .expect("failed to create intermediate buffer"),
+        );
     }
 
     let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
@@ -82,9 +78,8 @@ pub fn sum<T: Element>(
     let final_count = if intermediates.is_empty() {
         vec4_count
     } else {
-        u32::try_from(current_input.len())
-            .map_err(|_| Error::Device("length exceeds u32".into()))?
-            .div_ceil(4)
+        let len = u32::try_from(current_input.len()).expect("length exceeds u32::MAX");
+        len.div_ceil(4)
     };
     let final_workgroups = final_count.div_ceil(WORKGROUP_SIZE).max(1);
     encode_reduce_pass(
@@ -97,8 +92,6 @@ pub fn sum<T: Element>(
     );
 
     ctx.queue().submit(Some(encoder.finish()));
-
-    Ok(())
 }
 
 /// Encodes a single reduction pass into the command encoder.
@@ -136,11 +129,7 @@ fn encode_reduce_pass<T: Element>(
 }
 
 /// Copies one element from src to dst.
-fn copy_buffer<T: Element>(
-    ctx: &GpuContext,
-    src: &Buffer<T>,
-    dst: &Buffer<T>,
-) -> Result<(), Error> {
+fn copy_buffer<T: Element>(ctx: &GpuContext, src: &Buffer<T>, dst: &Buffer<T>) {
     let size = core::mem::size_of::<T>() as u64;
     let mut encoder = ctx
         .device()
@@ -149,8 +138,7 @@ fn copy_buffer<T: Element>(
     ctx.queue().submit(Some(encoder.finish()));
     ctx.device()
         .poll(wgpu::PollType::wait_indefinitely())
-        .map_err(|e| Error::Device(e.to_string()))?;
-    Ok(())
+        .expect("device poll failed");
 }
 
 fn create_shader_source<T: Element>() -> String {
@@ -238,7 +226,7 @@ mod tests {
 
         let input = ctx.create_buffer_from_slice(&[42.0f32]).unwrap();
         let output = ctx.create_buffer::<f32>(1).unwrap();
-        sum(&ctx, &input, &output).unwrap();
+        sum(&ctx, &input, &output);
         assert_relative_eq!(ctx.read_buffer(&output).unwrap()[0], 42.0, epsilon = 1e-5);
     }
 
@@ -251,19 +239,19 @@ mod tests {
             .create_buffer_from_slice(&[1.0f32, 2.0, 3.0, 4.0])
             .unwrap();
         let output = ctx.create_buffer::<f32>(1).unwrap();
-        sum(&ctx, &input, &output).unwrap();
+        sum(&ctx, &input, &output);
         assert_relative_eq!(ctx.read_buffer(&output).unwrap()[0], 10.0, epsilon = 1e-5);
 
         // i32
         let input = ctx.create_buffer_from_slice(&[1i32, 2, 3, 4, 5]).unwrap();
         let output = ctx.create_buffer::<i32>(1).unwrap();
-        sum(&ctx, &input, &output).unwrap();
+        sum(&ctx, &input, &output);
         assert_eq!(ctx.read_buffer(&output).unwrap(), vec![15]);
 
         // u32
         let input = ctx.create_buffer_from_slice(&[10u32, 20, 30, 40]).unwrap();
         let output = ctx.create_buffer::<u32>(1).unwrap();
-        sum(&ctx, &input, &output).unwrap();
+        sum(&ctx, &input, &output);
         assert_eq!(ctx.read_buffer(&output).unwrap(), vec![100]);
     }
 
@@ -277,7 +265,8 @@ mod tests {
 
         let input = ctx.create_buffer_from_slice(&data).unwrap();
         let output = ctx.create_buffer::<f32>(1).unwrap();
-        sum(&ctx, &input, &output).unwrap();
+
+        sum(&ctx, &input, &output);
 
         let result = ctx.read_buffer(&output).unwrap()[0];
         assert_relative_eq!(result, expected, epsilon = 1e-5);
@@ -289,7 +278,7 @@ mod tests {
 
         let input = ctx.create_buffer::<f32>(0).unwrap();
         let output = ctx.create_buffer::<f32>(1).unwrap();
-        sum(&ctx, &input, &output).unwrap();
+        sum(&ctx, &input, &output);
         assert_relative_eq!(ctx.read_buffer(&output).unwrap()[0], 0.0, epsilon = 1e-5);
     }
 
@@ -301,18 +290,18 @@ mod tests {
             .create_buffer_from_slice(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
             .unwrap();
         let output = ctx.create_buffer::<f32>(1).unwrap();
-        sum(&ctx, &input, &output).unwrap();
+        sum(&ctx, &input, &output);
         assert_relative_eq!(ctx.read_buffer(&output).unwrap()[0], 28.0, epsilon = 1e-5);
     }
 
     #[test]
-    fn test_sum_output_wrong_size() {
+    #[cfg_attr(debug_assertions, should_panic(expected = "length mismatch"))]
+    fn test_sum_assert_len() {
         let ctx = GpuContext::default();
 
         let input = ctx.create_buffer_from_slice(&[1.0f32, 2.0]).unwrap();
         let output = ctx.create_buffer::<f32>(2).unwrap();
 
-        let result = sum(&ctx, &input, &output);
-        assert!(result.is_err());
+        sum(&ctx, &input, &output);
     }
 }

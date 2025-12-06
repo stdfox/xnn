@@ -3,8 +3,8 @@
 //! Raises elements to a power using a compute shader.
 //! Only works with floating-point types.
 
-use crate::kernel::{assert_same_len, debug_assert_same_device};
-use crate::{Buffer, Error, FloatElement, GpuContext};
+use crate::kernel::{debug_assert_same_device, debug_assert_same_len};
+use crate::{Buffer, FloatElement, GpuContext};
 
 /// Workgroup size for the pow kernel.
 const WORKGROUP_SIZE: u32 = 256;
@@ -18,29 +18,20 @@ const MAX_WORKGROUPS_PER_DIM: u32 = 65535;
 ///
 /// Only works with floating-point types.
 ///
-/// # Errors
-///
-/// Returns [`Error::Kernel`](crate::Error::Kernel) if buffer lengths do not match.
-/// Returns [`Error::Device`](crate::Error::Device) if buffer length exceeds u32
-/// or the GPU operation fails.
-///
 /// # Panics
 ///
-/// Debug builds panic if any buffer belongs to a different device than `ctx`.
-pub fn pow<T: FloatElement>(
-    ctx: &GpuContext,
-    a: &Buffer<T>,
-    b: &Buffer<T>,
-    c: &Buffer<T>,
-) -> Result<(), Error> {
+/// - Buffer length exceeds `u32::MAX`.
+/// - (debug) Buffer lengths do not match.
+/// - (debug) Buffer belongs to a different device than `ctx`.
+pub fn pow<T: FloatElement>(ctx: &GpuContext, a: &Buffer<T>, b: &Buffer<T>, c: &Buffer<T>) {
     debug_assert_same_device(ctx, a, "a");
     debug_assert_same_device(ctx, b, "b");
     debug_assert_same_device(ctx, c, "c");
-    assert_same_len(a, b, "b")?;
-    assert_same_len(a, c, "c")?;
+    debug_assert_same_len(a, b, "b");
+    debug_assert_same_len(a, c, "c");
 
     if a.is_empty() {
-        return Ok(());
+        return;
     }
 
     let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
@@ -77,9 +68,8 @@ pub fn pow<T: FloatElement>(
         pass.set_pipeline(&pipeline);
         pass.set_bind_group(0, &bind_group, &[]);
 
-        let vec4_count = u32::try_from(a.len())
-            .map_err(|_| Error::Device("buffer length exceeds u32".into()))?
-            .div_ceil(4);
+        let len = u32::try_from(a.len()).expect("buffer length exceeds u32::MAX");
+        let vec4_count = len.div_ceil(4);
 
         let total_workgroups = vec4_count.div_ceil(WORKGROUP_SIZE);
         let workgroups_x = total_workgroups.min(MAX_WORKGROUPS_PER_DIM);
@@ -88,8 +78,6 @@ pub fn pow<T: FloatElement>(
     }
 
     ctx.queue().submit(Some(encoder.finish()));
-
-    Ok(())
 }
 
 fn create_shader_source<T: FloatElement>() -> String {
@@ -150,7 +138,7 @@ mod tests {
             .create_buffer_from_slice(&[3.0f32, 2.0, 0.5, 1.0])
             .unwrap();
         let c = ctx.create_buffer::<f32>(4).unwrap();
-        pow(&ctx, &a, &b, &c).unwrap();
+        pow(&ctx, &a, &b, &c);
         let result = ctx.read_buffer(&c).unwrap();
         assert_relative_eq!(result[0], 8.0, epsilon = 1e-5);
         assert_relative_eq!(result[1], 9.0, epsilon = 1e-5);
@@ -161,9 +149,9 @@ mod tests {
         let a = ctx.create_buffer::<f32>(42).unwrap();
         let b = ctx.create_buffer::<f32>(42).unwrap();
         let c = ctx.create_buffer::<f32>(42).unwrap();
-        fill(&ctx, &a, 2.0f32).unwrap();
-        fill(&ctx, &b, 3.0f32).unwrap();
-        pow(&ctx, &a, &b, &c).unwrap();
+        fill(&ctx, &a, 2.0f32);
+        fill(&ctx, &b, 3.0f32);
+        pow(&ctx, &a, &b, &c);
         let result = ctx.read_buffer(&c).unwrap();
         for val in &result {
             assert_relative_eq!(*val, 8.0, epsilon = 1e-5);
@@ -174,9 +162,9 @@ mod tests {
         let a = ctx.create_buffer::<f32>(len).unwrap();
         let b = ctx.create_buffer::<f32>(len).unwrap();
         let c = ctx.create_buffer::<f32>(len).unwrap();
-        fill(&ctx, &a, 2.0f32).unwrap();
-        fill(&ctx, &b, 4.0f32).unwrap();
-        pow(&ctx, &a, &b, &c).unwrap();
+        fill(&ctx, &a, 2.0f32);
+        fill(&ctx, &b, 4.0f32);
+        pow(&ctx, &a, &b, &c);
         let result = ctx.read_buffer(&c).unwrap();
         for val in &result {
             assert_relative_eq!(*val, 16.0, epsilon = 1e-5);
@@ -186,19 +174,19 @@ mod tests {
         let a = ctx.create_buffer::<f32>(0).unwrap();
         let b = ctx.create_buffer::<f32>(0).unwrap();
         let c = ctx.create_buffer::<f32>(0).unwrap();
-        pow(&ctx, &a, &b, &c).unwrap();
+        pow(&ctx, &a, &b, &c);
         assert!(ctx.read_buffer(&c).unwrap().is_empty());
     }
 
     #[test]
-    fn test_pow_length_mismatch() {
+    #[cfg_attr(debug_assertions, should_panic(expected = "buffer length mismatch"))]
+    fn test_pow_assert_same_len() {
         let ctx = GpuContext::default();
 
         let a = ctx.create_buffer::<f32>(4).unwrap();
         let b = ctx.create_buffer::<f32>(8).unwrap();
         let c = ctx.create_buffer::<f32>(4).unwrap();
 
-        let result = pow(&ctx, &a, &b, &c);
-        assert!(result.is_err());
+        pow(&ctx, &a, &b, &c);
     }
 }

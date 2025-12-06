@@ -5,8 +5,8 @@
 
 use wgpu::util::DeviceExt as _;
 
-use crate::kernel::{assert_len, debug_assert_same_device};
-use crate::{Buffer, Error, FloatElement, GpuContext};
+use crate::kernel::{debug_assert_len, debug_assert_same_device};
+use crate::{Buffer, FloatElement, GpuContext};
 
 /// Block size for register tiling (each thread computes BM×BN elements).
 const BLOCK_SIZE: u32 = 4;
@@ -36,16 +36,13 @@ const MAX_WORKGROUPS_PER_DISPATCH: u32 = 65536;
 ///
 /// Only works with floating-point types.
 ///
-/// # Errors
-///
-/// Returns [`Error::Kernel`](crate::Error::Kernel) if buffer sizes do not match
-/// matrix dimensions.
-/// Returns [`Error::Device`](crate::Error::Device) if matrix dimensions
-/// exceed `u32::MAX`.
-///
 /// # Panics
 ///
-/// Debug builds panic if any buffer belongs to a different device than `ctx`.
+/// - Matrix dimensions exceed `u32::MAX`.
+/// - (debug) Buffer `a` length does not match `m * k`.
+/// - (debug) Buffer `b` length does not match `k * n`.
+/// - (debug) Buffer `c` length does not match `m * n`.
+/// - (debug) Any buffer belongs to a different device than `ctx`.
 #[allow(clippy::many_single_char_names)]
 pub fn gemm<T: FloatElement>(
     ctx: &GpuContext,
@@ -55,21 +52,21 @@ pub fn gemm<T: FloatElement>(
     m: usize,
     k: usize,
     n: usize,
-) -> Result<(), Error> {
+) {
     debug_assert_same_device(ctx, a, "a");
     debug_assert_same_device(ctx, b, "b");
     debug_assert_same_device(ctx, c, "c");
-    assert_len(a, m * k, "a")?;
-    assert_len(b, k * n, "b")?;
-    assert_len(c, m * n, "c")?;
+    debug_assert_len(a, m * k, "a");
+    debug_assert_len(b, k * n, "b");
+    debug_assert_len(c, m * n, "c");
 
     if m == 0 || k == 0 || n == 0 {
-        return Ok(());
+        return;
     }
 
-    let m32 = u32::try_from(m).map_err(|_| Error::Device("m exceeds u32::MAX".into()))?;
-    let k32 = u32::try_from(k).map_err(|_| Error::Device("k exceeds u32::MAX".into()))?;
-    let n32 = u32::try_from(n).map_err(|_| Error::Device("n exceeds u32::MAX".into()))?;
+    let m32 = u32::try_from(m).expect("m exceeds u32::MAX");
+    let k32 = u32::try_from(k).expect("k exceeds u32::MAX");
+    let n32 = u32::try_from(n).expect("n exceeds u32::MAX");
 
     let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
 
@@ -146,8 +143,6 @@ pub fn gemm<T: FloatElement>(
     }
 
     ctx.queue().submit(Some(encoder.finish()));
-
-    Ok(())
 }
 
 #[allow(clippy::too_many_lines)]
@@ -329,7 +324,7 @@ mod tests {
             .unwrap();
         let c = ctx.create_buffer::<f32>(4).unwrap();
 
-        gemm(&ctx, &a, &b, &c, 2, 2, 2).unwrap();
+        gemm(&ctx, &a, &b, &c, 2, 2, 2);
 
         let result = ctx.read_buffer(&c).unwrap();
         assert_eq!(result, vec![19.0, 22.0, 43.0, 50.0]);
@@ -348,7 +343,7 @@ mod tests {
             .unwrap();
         let c = ctx.create_buffer::<f32>(4).unwrap();
 
-        gemm(&ctx, &a, &b, &c, 2, 3, 2).unwrap();
+        gemm(&ctx, &a, &b, &c, 2, 3, 2);
 
         let result = ctx.read_buffer(&c).unwrap();
         assert_eq!(result, vec![58.0, 64.0, 139.0, 154.0]);
@@ -367,7 +362,7 @@ mod tests {
             .unwrap();
         let c = ctx.create_buffer::<f32>(4).unwrap();
 
-        gemm(&ctx, &a, &identity, &c, 2, 2, 2).unwrap();
+        gemm(&ctx, &a, &identity, &c, 2, 2, 2);
 
         let result = ctx.read_buffer(&c).unwrap();
         assert_eq!(result, vec![1.0, 2.0, 3.0, 4.0]);
@@ -388,11 +383,9 @@ mod tests {
         let b = ctx.create_buffer_from_slice(&b_data).unwrap();
         let c = ctx.create_buffer::<f32>(m * n).unwrap();
 
-        gemm(&ctx, &a, &b, &c, m, k, n).unwrap();
+        gemm(&ctx, &a, &b, &c, m, k, n);
 
         let result = ctx.read_buffer(&c).unwrap();
-
-        // Verify first element manually
         let mut expected_c00: f32 = 0.0;
         for i in 0..k {
             expected_c00 += a_data[i] * b_data[i * n];
@@ -408,28 +401,18 @@ mod tests {
         let b = ctx.create_buffer::<f32>(0).unwrap();
         let c = ctx.create_buffer::<f32>(0).unwrap();
 
-        gemm(&ctx, &a, &b, &c, 0, 0, 0).unwrap();
+        gemm(&ctx, &a, &b, &c, 0, 0, 0);
     }
 
     #[test]
-    fn test_gemm_dimension_mismatch() {
+    #[cfg_attr(debug_assertions, should_panic(expected = "length mismatch"))]
+    fn test_gemm_assert_len() {
         let ctx = GpuContext::default();
 
         let a = ctx.create_buffer::<f32>(6).unwrap(); // 2x3
         let b = ctx.create_buffer::<f32>(6).unwrap(); // 3x2
         let c = ctx.create_buffer::<f32>(4).unwrap(); // 2x2
 
-        // Wrong A dimensions
-        let err = gemm(&ctx, &a, &b, &c, 3, 2, 2).unwrap_err();
-        assert!(err.to_string().contains("length mismatch"));
-
-        // Wrong B dimensions
-        let err = gemm(&ctx, &a, &b, &c, 2, 3, 3).unwrap_err();
-        assert!(err.to_string().contains("length mismatch"));
-
-        // Wrong C dimensions
-        let c_wrong = ctx.create_buffer::<f32>(6).unwrap();
-        let err = gemm(&ctx, &a, &b, &c_wrong, 2, 3, 2).unwrap_err();
-        assert!(err.to_string().contains("length mismatch"));
+        gemm(&ctx, &a, &b, &c, 3, 2, 2);
     }
 }

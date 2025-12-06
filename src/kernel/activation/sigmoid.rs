@@ -2,8 +2,8 @@
 //!
 //! Applies the sigmoid activation function using a compute shader.
 
-use crate::kernel::{assert_same_len, debug_assert_same_device};
-use crate::{Buffer, Error, FloatElement, GpuContext};
+use crate::kernel::{debug_assert_same_device, debug_assert_same_len};
+use crate::{Buffer, FloatElement, GpuContext};
 
 /// Workgroup size for the `sigmoid` kernel.
 const WORKGROUP_SIZE: u32 = 256;
@@ -15,26 +15,18 @@ const MAX_WORKGROUPS_PER_DIM: u32 = 65535;
 ///
 /// Computes `b[i] = 1 / (1 + exp(-a[i]))` for all elements.
 ///
-/// # Errors
-///
-/// Returns [`Error::Kernel`](crate::Error::Kernel) if buffer lengths do not match.
-/// Returns [`Error::Device`](crate::Error::Device) if buffer length exceeds u32
-/// or the GPU operation fails.
-///
 /// # Panics
 ///
-/// Debug builds panic if any buffer belongs to a different device than `ctx`.
-pub fn sigmoid<T: FloatElement>(
-    ctx: &GpuContext,
-    a: &Buffer<T>,
-    b: &Buffer<T>,
-) -> Result<(), Error> {
+/// - Buffer length exceeds `u32::MAX`.
+/// - (debug) Buffer lengths do not match.
+/// - (debug) Buffer belongs to a different device than `ctx`.
+pub fn sigmoid<T: FloatElement>(ctx: &GpuContext, a: &Buffer<T>, b: &Buffer<T>) {
     debug_assert_same_device(ctx, a, "a");
     debug_assert_same_device(ctx, b, "b");
-    assert_same_len(a, b, "b")?;
+    debug_assert_same_len(a, b, "b");
 
     if a.is_empty() {
-        return Ok(());
+        return;
     }
 
     let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
@@ -67,9 +59,8 @@ pub fn sigmoid<T: FloatElement>(
         pass.set_pipeline(&pipeline);
         pass.set_bind_group(0, &bind_group, &[]);
 
-        let vec4_count = u32::try_from(a.len())
-            .map_err(|_| Error::Device("buffer length exceeds u32".into()))?
-            .div_ceil(4);
+        let len = u32::try_from(a.len()).expect("buffer length exceeds u32::MAX");
+        let vec4_count = len.div_ceil(4);
 
         let total_workgroups = vec4_count.div_ceil(WORKGROUP_SIZE);
         let workgroups_x = total_workgroups.min(MAX_WORKGROUPS_PER_DIM);
@@ -78,8 +69,6 @@ pub fn sigmoid<T: FloatElement>(
     }
 
     ctx.queue().submit(Some(encoder.finish()));
-
-    Ok(())
 }
 
 fn create_shader_source<T: FloatElement>() -> String {
@@ -136,7 +125,7 @@ mod tests {
             .create_buffer_from_slice(&[0.0f32, 1.0, -1.0, 10.0, -10.0, 2.0, -2.0, 0.5])
             .unwrap();
         let b = ctx.create_buffer::<f32>(8).unwrap();
-        sigmoid(&ctx, &a, &b).unwrap();
+        sigmoid(&ctx, &a, &b);
         let result = ctx.read_buffer(&b).unwrap();
 
         // sigmoid(0) = 0.5
@@ -159,8 +148,8 @@ mod tests {
         // non-aligned - zero input
         let a = ctx.create_buffer::<f32>(42).unwrap();
         let b = ctx.create_buffer::<f32>(42).unwrap();
-        fill(&ctx, &a, 0.0f32).unwrap();
-        sigmoid(&ctx, &a, &b).unwrap();
+        fill(&ctx, &a, 0.0f32);
+        sigmoid(&ctx, &a, &b);
         let result = ctx.read_buffer(&b).unwrap();
         for val in &result {
             assert_relative_eq!(*val, 0.5, epsilon = 1e-5);
@@ -170,8 +159,8 @@ mod tests {
         let len = 4096 * 4096;
         let a = ctx.create_buffer::<f32>(len).unwrap();
         let b = ctx.create_buffer::<f32>(len).unwrap();
-        fill(&ctx, &a, 0.0f32).unwrap();
-        sigmoid(&ctx, &a, &b).unwrap();
+        fill(&ctx, &a, 0.0f32);
+        sigmoid(&ctx, &a, &b);
         let result = ctx.read_buffer(&b).unwrap();
         for val in &result {
             assert_relative_eq!(*val, 0.5, epsilon = 1e-5);
@@ -180,18 +169,18 @@ mod tests {
         // empty
         let a = ctx.create_buffer::<f32>(0).unwrap();
         let b = ctx.create_buffer::<f32>(0).unwrap();
-        sigmoid(&ctx, &a, &b).unwrap();
+        sigmoid(&ctx, &a, &b);
         assert!(ctx.read_buffer(&b).unwrap().is_empty());
     }
 
     #[test]
+    #[cfg_attr(debug_assertions, should_panic(expected = "buffer length mismatch"))]
     fn test_sigmoid_length_mismatch() {
         let ctx = GpuContext::default();
 
         let a = ctx.create_buffer::<f32>(4).unwrap();
         let b = ctx.create_buffer::<f32>(8).unwrap();
 
-        let result = sigmoid(&ctx, &a, &b);
-        assert!(result.is_err());
+        sigmoid(&ctx, &a, &b);
     }
 }

@@ -1,23 +1,23 @@
 //! GPU compute kernels.
 //!
-//! Provides WGSL-based compute shaders for tensor operations.
-//! All kernels operate on [`Buffer`](crate::Buffer) and require a [`GpuContext`](crate::GpuContext).
+//! WGSL-based compute shaders for tensor operations. All kernels operate
+//! on [`Buffer`] and require a [`GpuContext`].
 //!
 //! # Categories
 //!
-//! - [`activation`]: Activation functions (relu, sigmoid)
-//! - [`arithmetic`]: Element-wise arithmetic (add, sub, mul, div, rem, pow, scalar variants)
-//! - [`initializer`]: Buffer initialization (fill)
-//! - [`linalg`]: Linear algebra (gemm, transpose)
-//! - [`reduction`]: Reduction operations (sum)
-//! - [`shape`]: Shape manipulation (broadcast_rows)
+//! - **activation** — `relu`, `sigmoid`.
+//! - **arithmetic** — `add`, `sub`, `mul`, `div`, `rem`, `pow` (and scalar variants).
+//! - **initializer** — `fill`.
+//! - **linalg** — `gemm`, `transpose`.
+//! - **reduction** — `sum`.
+//! - **shape** — `broadcast_rows`.
 
-pub mod activation;
-pub mod arithmetic;
-pub mod initializer;
-pub mod linalg;
-pub mod reduction;
-pub mod shape;
+mod activation;
+mod arithmetic;
+mod initializer;
+mod linalg;
+mod reduction;
+mod shape;
 
 pub use activation::{relu, sigmoid};
 pub use arithmetic::{
@@ -32,18 +32,19 @@ pub use shape::broadcast_rows;
 use crate::Element;
 use crate::GpuContext;
 use crate::device::Buffer;
-use crate::error::Error;
 
 /// Synchronizes GPU operations.
 ///
 /// Waits for all pending GPU commands to complete.
+///
+/// # Panics
+///
+/// - GPU device poll fails.
 #[inline]
-pub fn sync(ctx: &GpuContext) -> Result<(), Error> {
+pub fn sync(ctx: &GpuContext) {
     ctx.device()
         .poll(wgpu::PollType::wait_indefinitely())
-        .map_err(|e| Error::Device(e.to_string()))?;
-
-    Ok(())
+        .expect("device poll failed");
 }
 
 /// Debug assertion that buffer belongs to the given context.
@@ -55,35 +56,27 @@ pub(crate) fn debug_assert_same_device<T: Element>(ctx: &GpuContext, buf: &Buffe
     );
 }
 
-/// Asserts that two buffers have the same length.
+/// Debug assertion that two buffers have the same length.
 #[inline]
-pub(crate) fn assert_same_len<T: Element>(
+pub(crate) fn debug_assert_same_len<T: Element, U: Element>(
     a: &Buffer<T>,
-    b: &Buffer<T>,
+    b: &Buffer<U>,
     name: &str,
-) -> Result<(), Error> {
-    if a.len() != b.len() {
-        return Err(Error::Kernel(format!(
-            "buffer length mismatch: a={}, {name}={}",
-            a.len(),
-            b.len()
-        )));
-    }
-    Ok(())
+) {
+    debug_assert!(
+        a.len() == b.len(),
+        "buffer length mismatch: a={}, {name}={}",
+        a.len(),
+        b.len()
+    );
 }
 
-/// Asserts that buffer length matches expected size.
+/// Debug assertion that buffer length matches expected size.
 #[inline]
-pub(crate) fn assert_len<T: Element>(
-    buf: &Buffer<T>,
-    expected: usize,
-    name: &str,
-) -> Result<(), Error> {
-    if buf.len() != expected {
-        return Err(Error::Kernel(format!(
-            "buffer {name} length mismatch: expected {expected}, got {}",
-            buf.len()
-        )));
-    }
-    Ok(())
+pub(crate) fn debug_assert_len<T: Element>(buf: &Buffer<T>, expected: usize, name: &str) {
+    debug_assert!(
+        buf.len() == expected,
+        "buffer `{name}` length mismatch: expected {expected}, got {}",
+        buf.len()
+    );
 }

@@ -2,8 +2,8 @@
 //!
 //! Subtracts a scalar from each element of a buffer using a compute shader.
 
-use crate::kernel::{assert_len, assert_same_len, debug_assert_same_device};
-use crate::{Buffer, Element, Error, GpuContext};
+use crate::kernel::{debug_assert_len, debug_assert_same_device, debug_assert_same_len};
+use crate::{Buffer, Element, GpuContext};
 
 /// Workgroup size for the `sub_scalar` kernel.
 const WORKGROUP_SIZE: u32 = 256;
@@ -17,30 +17,21 @@ const MAX_WORKGROUPS_PER_DIM: u32 = 65535;
 ///
 /// The `b` buffer must contain exactly one element.
 ///
-/// # Errors
-///
-/// Returns [`Error::Kernel`](crate::Error::Kernel) if buffer lengths do not match
-/// or if `b` does not have exactly one element.
-/// Returns [`Error::Device`](crate::Error::Device) if buffer length exceeds u32
-/// or the GPU operation fails.
-///
 /// # Panics
 ///
-/// Debug builds panic if any buffer belongs to a different device than `ctx`.
-pub fn sub_scalar<T: Element>(
-    ctx: &GpuContext,
-    a: &Buffer<T>,
-    b: &Buffer<T>,
-    c: &Buffer<T>,
-) -> Result<(), Error> {
+/// - Buffer length exceeds `u32::MAX`.
+/// - (debug) Buffer `b` does not have exactly one element.
+/// - (debug) Buffer lengths of `a` and `c` do not match.
+/// - (debug) Buffer belongs to a different device than `ctx`.
+pub fn sub_scalar<T: Element>(ctx: &GpuContext, a: &Buffer<T>, b: &Buffer<T>, c: &Buffer<T>) {
     debug_assert_same_device(ctx, a, "a");
     debug_assert_same_device(ctx, b, "b");
     debug_assert_same_device(ctx, c, "c");
-    assert_same_len(a, c, "c")?;
-    assert_len(b, 1, "b")?;
+    debug_assert_same_len(a, c, "c");
+    debug_assert_len(b, 1, "b");
 
     if a.is_empty() {
-        return Ok(());
+        return;
     }
 
     let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
@@ -77,9 +68,8 @@ pub fn sub_scalar<T: Element>(
         pass.set_pipeline(&pipeline);
         pass.set_bind_group(0, &bind_group, &[]);
 
-        let vec4_count = u32::try_from(a.len())
-            .map_err(|_| Error::Device("buffer length exceeds u32".into()))?
-            .div_ceil(4);
+        let len = u32::try_from(a.len()).expect("buffer length exceeds u32::MAX");
+        let vec4_count = len.div_ceil(4);
 
         let total_workgroups = vec4_count.div_ceil(WORKGROUP_SIZE);
         let workgroups_x = total_workgroups.min(MAX_WORKGROUPS_PER_DIM);
@@ -88,8 +78,6 @@ pub fn sub_scalar<T: Element>(
     }
 
     ctx.queue().submit(Some(encoder.finish()));
-
-    Ok(())
 }
 
 fn create_shader_source<T: Element>() -> String {
@@ -150,29 +138,29 @@ mod tests {
             .unwrap();
         let b = ctx.create_buffer_from_slice(&[42.0f32]).unwrap();
         let c = ctx.create_buffer::<f32>(4).unwrap();
-        sub_scalar(&ctx, &a, &b, &c).unwrap();
+        sub_scalar(&ctx, &a, &b, &c);
         assert_eq!(ctx.read_buffer(&c).unwrap(), vec![1.0, 2.0, 3.0, 4.0]);
 
         // i32
         let a = ctx.create_buffer_from_slice(&[43i32, 44, 45, 46]).unwrap();
         let b = ctx.create_buffer_from_slice(&[42i32]).unwrap();
         let c = ctx.create_buffer::<i32>(4).unwrap();
-        sub_scalar(&ctx, &a, &b, &c).unwrap();
+        sub_scalar(&ctx, &a, &b, &c);
         assert_eq!(ctx.read_buffer(&c).unwrap(), vec![1, 2, 3, 4]);
 
         // u32
         let a = ctx.create_buffer_from_slice(&[43u32, 44, 45, 46]).unwrap();
         let b = ctx.create_buffer_from_slice(&[42u32]).unwrap();
         let c = ctx.create_buffer::<u32>(4).unwrap();
-        sub_scalar(&ctx, &a, &b, &c).unwrap();
+        sub_scalar(&ctx, &a, &b, &c);
         assert_eq!(ctx.read_buffer(&c).unwrap(), vec![1, 2, 3, 4]);
 
         // non-aligned
         let a = ctx.create_buffer::<f32>(42).unwrap();
         let b = ctx.create_buffer_from_slice(&[PI]).unwrap();
         let c = ctx.create_buffer::<f32>(42).unwrap();
-        fill(&ctx, &a, 42.0f32).unwrap();
-        sub_scalar(&ctx, &a, &b, &c).unwrap();
+        fill(&ctx, &a, 42.0f32);
+        sub_scalar(&ctx, &a, &b, &c);
         let result = ctx.read_buffer(&c).unwrap();
         for val in &result {
             assert_relative_eq!(*val, 42.0 - PI, epsilon = 1e-5);
@@ -183,8 +171,8 @@ mod tests {
         let a = ctx.create_buffer::<f32>(len).unwrap();
         let b = ctx.create_buffer_from_slice(&[PI]).unwrap();
         let c = ctx.create_buffer::<f32>(len).unwrap();
-        fill(&ctx, &a, 42.0f32).unwrap();
-        sub_scalar(&ctx, &a, &b, &c).unwrap();
+        fill(&ctx, &a, 42.0f32);
+        sub_scalar(&ctx, &a, &b, &c);
         let result = ctx.read_buffer(&c).unwrap();
         for val in &result {
             assert_relative_eq!(*val, 42.0 - PI, epsilon = 1e-5);
@@ -194,31 +182,31 @@ mod tests {
         let a = ctx.create_buffer::<f32>(0).unwrap();
         let b = ctx.create_buffer_from_slice(&[42.0f32]).unwrap();
         let c = ctx.create_buffer::<f32>(0).unwrap();
-        sub_scalar(&ctx, &a, &b, &c).unwrap();
+        sub_scalar(&ctx, &a, &b, &c);
         assert!(ctx.read_buffer(&c).unwrap().is_empty());
     }
 
     #[test]
-    fn test_sub_scalar_length_mismatch() {
+    #[cfg_attr(debug_assertions, should_panic(expected = "buffer length mismatch"))]
+    fn test_sub_scalar_assert_same_len() {
         let ctx = GpuContext::default();
 
         let a = ctx.create_buffer::<f32>(4).unwrap();
         let b = ctx.create_buffer_from_slice(&[42.0f32]).unwrap();
         let c = ctx.create_buffer::<f32>(8).unwrap();
 
-        let result = sub_scalar(&ctx, &a, &b, &c);
-        assert!(result.is_err());
+        sub_scalar(&ctx, &a, &b, &c);
     }
 
     #[test]
-    fn test_sub_scalar_wrong_b_length() {
+    #[cfg_attr(debug_assertions, should_panic(expected = "length mismatch"))]
+    fn test_sub_scalar_assert_len() {
         let ctx = GpuContext::default();
 
         let a = ctx.create_buffer::<f32>(4).unwrap();
         let b = ctx.create_buffer_from_slice(&[1.0f32, 2.0]).unwrap();
         let c = ctx.create_buffer::<f32>(4).unwrap();
 
-        let result = sub_scalar(&ctx, &a, &b, &c);
-        assert!(result.is_err());
+        sub_scalar(&ctx, &a, &b, &c);
     }
 }

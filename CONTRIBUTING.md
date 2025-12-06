@@ -35,13 +35,13 @@ This project uses [Criterion](https://bheisler.github.io/criterion.rs/book/) for
 Run all kernel benchmarks:
 
 ```bash
-cargo bench --bench kernel
+cargo bench --bench kernel --features unstable-kernels
 ```
 
 Run specific kernel benchmark:
 
 ```bash
-cargo bench --bench kernel -- kernel/gemm
+cargo bench --bench kernel --features unstable-kernels -- kernel/gemm
 ```
 
 ### Comparing performance
@@ -49,19 +49,19 @@ cargo bench --bench kernel -- kernel/gemm
 Save baseline before making changes (**run it at least twice** to ensure GPU warmup for more stable results):
 
 ```bash
-cargo bench --bench kernel -- --noplot --quiet --save-baseline main
+cargo bench --bench kernel --features unstable-kernels -- --noplot --quiet --save-baseline main
 ```
 
 Compare current performance against baseline:
 
 ```bash
-cargo bench --bench kernel -- --noplot --baseline main
+cargo bench --bench kernel --features unstable-kernels -- --noplot --baseline main
 ```
 
 Compare specific kernel:
 
 ```bash
-cargo bench --bench kernel -- kernel/gemm --noplot --baseline main
+cargo bench --bench kernel --features unstable-kernels -- kernel/gemm --noplot --baseline main
 ```
 
 ## Commit Message Guidelines

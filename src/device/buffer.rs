@@ -1,4 +1,4 @@
-//! Typed GPU buffer.
+//! Typed GPU buffer for element data.
 
 use core::marker::PhantomData;
 

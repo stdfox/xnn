@@ -2,8 +2,8 @@
 //!
 //! Computes the remainder of division using a compute shader.
 
-use crate::kernel::{assert_same_len, debug_assert_same_device};
-use crate::{Buffer, Element, Error, GpuContext};
+use crate::kernel::{debug_assert_same_device, debug_assert_same_len};
+use crate::{Buffer, Element, GpuContext};
 
 /// Workgroup size for the rem kernel.
 const WORKGROUP_SIZE: u32 = 256;
@@ -15,29 +15,20 @@ const MAX_WORKGROUPS_PER_DIM: u32 = 65535;
 ///
 /// Computes `c[i] = a[i] % b[i]` for all elements.
 ///
-/// # Errors
-///
-/// Returns [`Error::Kernel`](crate::Error::Kernel) if buffer lengths do not match.
-/// Returns [`Error::Device`](crate::Error::Device) if buffer length exceeds u32
-/// or the GPU operation fails.
-///
 /// # Panics
 ///
-/// Debug builds panic if any buffer belongs to a different device than `ctx`.
-pub fn rem<T: Element>(
-    ctx: &GpuContext,
-    a: &Buffer<T>,
-    b: &Buffer<T>,
-    c: &Buffer<T>,
-) -> Result<(), Error> {
+/// - Buffer length exceeds `u32::MAX`.
+/// - (debug) Buffer lengths do not match.
+/// - (debug) Buffer belongs to a different device than `ctx`.
+pub fn rem<T: Element>(ctx: &GpuContext, a: &Buffer<T>, b: &Buffer<T>, c: &Buffer<T>) {
     debug_assert_same_device(ctx, a, "a");
     debug_assert_same_device(ctx, b, "b");
     debug_assert_same_device(ctx, c, "c");
-    assert_same_len(a, b, "b")?;
-    assert_same_len(a, c, "c")?;
+    debug_assert_same_len(a, b, "b");
+    debug_assert_same_len(a, c, "c");
 
     if a.is_empty() {
-        return Ok(());
+        return;
     }
 
     let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
@@ -74,9 +65,8 @@ pub fn rem<T: Element>(
         pass.set_pipeline(&pipeline);
         pass.set_bind_group(0, &bind_group, &[]);
 
-        let vec4_count = u32::try_from(a.len())
-            .map_err(|_| Error::Device("buffer length exceeds u32".into()))?
-            .div_ceil(4);
+        let len = u32::try_from(a.len()).expect("buffer length exceeds u32::MAX");
+        let vec4_count = len.div_ceil(4);
 
         let total_workgroups = vec4_count.div_ceil(WORKGROUP_SIZE);
         let workgroups_x = total_workgroups.min(MAX_WORKGROUPS_PER_DIM);
@@ -85,8 +75,6 @@ pub fn rem<T: Element>(
     }
 
     ctx.queue().submit(Some(encoder.finish()));
-
-    Ok(())
 }
 
 fn create_shader_source<T: Element>() -> String {
@@ -147,7 +135,7 @@ mod tests {
             .create_buffer_from_slice(&[2.0f32, 3.0, 4.0, 5.0])
             .unwrap();
         let c = ctx.create_buffer::<f32>(4).unwrap();
-        rem(&ctx, &a, &b, &c).unwrap();
+        rem(&ctx, &a, &b, &c);
         let result = ctx.read_buffer(&c).unwrap();
         assert_relative_eq!(result[0], 1.5, epsilon = 1e-5);
         assert_relative_eq!(result[1], 1.0, epsilon = 1e-5);
@@ -158,23 +146,23 @@ mod tests {
         let a = ctx.create_buffer_from_slice(&[7i32, 10, 15, 3]).unwrap();
         let b = ctx.create_buffer_from_slice(&[3i32, 4, 6, 5]).unwrap();
         let c = ctx.create_buffer::<i32>(4).unwrap();
-        rem(&ctx, &a, &b, &c).unwrap();
+        rem(&ctx, &a, &b, &c);
         assert_eq!(ctx.read_buffer(&c).unwrap(), vec![1, 2, 3, 3]);
 
         // u32
         let a = ctx.create_buffer_from_slice(&[7u32, 10, 15, 3]).unwrap();
         let b = ctx.create_buffer_from_slice(&[3u32, 4, 6, 5]).unwrap();
         let c = ctx.create_buffer::<u32>(4).unwrap();
-        rem(&ctx, &a, &b, &c).unwrap();
+        rem(&ctx, &a, &b, &c);
         assert_eq!(ctx.read_buffer(&c).unwrap(), vec![1, 2, 3, 3]);
 
         // non-aligned
         let a = ctx.create_buffer::<i32>(42).unwrap();
         let b = ctx.create_buffer::<i32>(42).unwrap();
         let c = ctx.create_buffer::<i32>(42).unwrap();
-        fill(&ctx, &a, 10i32).unwrap();
-        fill(&ctx, &b, 3i32).unwrap();
-        rem(&ctx, &a, &b, &c).unwrap();
+        fill(&ctx, &a, 10i32);
+        fill(&ctx, &b, 3i32);
+        rem(&ctx, &a, &b, &c);
         assert_eq!(ctx.read_buffer(&c).unwrap(), vec![1; 42]);
 
         // large
@@ -182,9 +170,9 @@ mod tests {
         let a = ctx.create_buffer::<i32>(len).unwrap();
         let b = ctx.create_buffer::<i32>(len).unwrap();
         let c = ctx.create_buffer::<i32>(len).unwrap();
-        fill(&ctx, &a, 17i32).unwrap();
-        fill(&ctx, &b, 5i32).unwrap();
-        rem(&ctx, &a, &b, &c).unwrap();
+        fill(&ctx, &a, 17i32);
+        fill(&ctx, &b, 5i32);
+        rem(&ctx, &a, &b, &c);
         let result = ctx.read_buffer(&c).unwrap();
         for val in &result {
             assert_eq!(*val, 2);
@@ -194,19 +182,19 @@ mod tests {
         let a = ctx.create_buffer::<f32>(0).unwrap();
         let b = ctx.create_buffer::<f32>(0).unwrap();
         let c = ctx.create_buffer::<f32>(0).unwrap();
-        rem(&ctx, &a, &b, &c).unwrap();
+        rem(&ctx, &a, &b, &c);
         assert!(ctx.read_buffer(&c).unwrap().is_empty());
     }
 
     #[test]
-    fn test_rem_length_mismatch() {
+    #[cfg_attr(debug_assertions, should_panic(expected = "buffer length mismatch"))]
+    fn test_rem_assert_same_len() {
         let ctx = GpuContext::default();
 
         let a = ctx.create_buffer::<f32>(4).unwrap();
         let b = ctx.create_buffer::<f32>(8).unwrap();
         let c = ctx.create_buffer::<f32>(4).unwrap();
 
-        let result = rem(&ctx, &a, &b, &c);
-        assert!(result.is_err());
+        rem(&ctx, &a, &b, &c);
     }
 }

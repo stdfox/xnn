@@ -4,8 +4,8 @@
 
 use wgpu::util::DeviceExt as _;
 
-use crate::kernel::{assert_len, debug_assert_same_device};
-use crate::{Buffer, Element, Error, GpuContext};
+use crate::kernel::{debug_assert_len, debug_assert_same_device};
+use crate::{Buffer, Element, GpuContext};
 
 /// Tile size for workgroup (16×16 threads).
 const TILE_SIZE: u32 = 16;
@@ -20,34 +20,30 @@ const TILE_SIZE: u32 = 16;
 /// * `rows` - Number of rows in input
 /// * `cols` - Number of columns in input
 ///
-/// # Errors
-///
-/// Returns [`Error::Kernel`](crate::Error::Kernel) if buffer lengths don't match
-/// `rows * cols`.
-/// Returns [`Error::Device`](crate::Error::Device) if matrix dimensions
-/// exceed `u32::MAX`.
-///
 /// # Panics
 ///
-/// Debug builds panic if any buffer belongs to a different device than `ctx`.
+/// - Matrix dimensions exceed `u32::MAX`.
+/// - (debug) Buffer `a` length does not match `rows * cols`.
+/// - (debug) Buffer `b` length does not match `rows * cols`.
+/// - (debug) Any buffer belongs to a different device than `ctx`.
 pub fn transpose<T: Element>(
     ctx: &GpuContext,
     a: &Buffer<T>,
     b: &Buffer<T>,
     rows: usize,
     cols: usize,
-) -> Result<(), Error> {
+) {
     debug_assert_same_device(ctx, a, "a");
     debug_assert_same_device(ctx, b, "b");
-    assert_len(a, rows * cols, "a")?;
-    assert_len(b, rows * cols, "b")?;
+    debug_assert_len(a, rows * cols, "a");
+    debug_assert_len(b, rows * cols, "b");
 
     if rows == 0 || cols == 0 {
-        return Ok(());
+        return;
     }
 
-    let rows32 = u32::try_from(rows).map_err(|_| Error::Device("rows exceeds u32::MAX".into()))?;
-    let cols32 = u32::try_from(cols).map_err(|_| Error::Device("cols exceeds u32::MAX".into()))?;
+    let rows32 = u32::try_from(rows).expect("rows exceeds u32::MAX");
+    let cols32 = u32::try_from(cols).expect("cols exceeds u32::MAX");
 
     let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
 
@@ -99,8 +95,6 @@ pub fn transpose<T: Element>(
     }
 
     ctx.queue().submit(Some(encoder.finish()));
-
-    Ok(())
 }
 
 fn create_shader_source<T: Element>() -> String {
@@ -179,7 +173,9 @@ mod tests {
             .create_buffer_from_slice(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0])
             .unwrap();
         let b = ctx.create_buffer::<f32>(6).unwrap();
-        transpose(&ctx, &a, &b, 2, 3).unwrap();
+
+        transpose(&ctx, &a, &b, 2, 3);
+
         let result = ctx.read_buffer(&b).unwrap();
         assert_eq!(result, vec![1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
     }
@@ -193,7 +189,9 @@ mod tests {
             .create_buffer_from_slice(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
             .unwrap();
         let b = ctx.create_buffer::<f32>(9).unwrap();
-        transpose(&ctx, &a, &b, 3, 3).unwrap();
+
+        transpose(&ctx, &a, &b, 3, 3);
+
         let result = ctx.read_buffer(&b).unwrap();
         assert_eq!(result, vec![1.0, 4.0, 7.0, 2.0, 5.0, 8.0, 3.0, 6.0, 9.0]);
     }
@@ -207,7 +205,9 @@ mod tests {
             .create_buffer_from_slice(&[1.0f32, 2.0, 3.0, 4.0])
             .unwrap();
         let b = ctx.create_buffer::<f32>(4).unwrap();
-        transpose(&ctx, &a, &b, 1, 4).unwrap();
+
+        transpose(&ctx, &a, &b, 1, 4);
+
         let result = ctx.read_buffer(&b).unwrap();
         assert_eq!(result, vec![1.0, 2.0, 3.0, 4.0]);
     }
@@ -221,7 +221,9 @@ mod tests {
             .create_buffer_from_slice(&[1.0f32, 2.0, 3.0, 4.0])
             .unwrap();
         let b = ctx.create_buffer::<f32>(4).unwrap();
-        transpose(&ctx, &a, &b, 4, 1).unwrap();
+
+        transpose(&ctx, &a, &b, 4, 1);
+
         let result = ctx.read_buffer(&b).unwrap();
         assert_eq!(result, vec![1.0, 2.0, 3.0, 4.0]);
     }
@@ -236,7 +238,9 @@ mod tests {
         let a_data: Vec<f32> = (0..42).map(|i| i as f32).collect();
         let a = ctx.create_buffer_from_slice(&a_data).unwrap();
         let b = ctx.create_buffer::<f32>(42).unwrap();
-        transpose(&ctx, &a, &b, rows, cols).unwrap();
+
+        transpose(&ctx, &a, &b, rows, cols);
+
         let result = ctx.read_buffer(&b).unwrap();
         for i in 0..rows {
             for j in 0..cols {
@@ -255,7 +259,9 @@ mod tests {
         let a_data: Vec<f32> = (0..len as u32).map(|i| i as f32).collect();
         let a = ctx.create_buffer_from_slice(&a_data).unwrap();
         let b = ctx.create_buffer::<f32>(len).unwrap();
-        transpose(&ctx, &a, &b, size, size).unwrap();
+
+        transpose(&ctx, &a, &b, size, size);
+
         let result = ctx.read_buffer(&b).unwrap();
         assert_eq!(result[0], 0.0);
         assert_eq!(result[size], 1.0);
@@ -268,15 +274,15 @@ mod tests {
         let ctx = GpuContext::default();
         let a = ctx.create_buffer::<f32>(0).unwrap();
         let b = ctx.create_buffer::<f32>(0).unwrap();
-        transpose(&ctx, &a, &b, 0, 0).unwrap();
+        transpose(&ctx, &a, &b, 0, 0);
     }
 
     #[test]
-    fn test_transpose_length_mismatch() {
+    #[cfg_attr(debug_assertions, should_panic(expected = "length mismatch"))]
+    fn test_transpose_assert_len() {
         let ctx = GpuContext::default();
         let a = ctx.create_buffer::<f32>(6).unwrap();
         let b = ctx.create_buffer::<f32>(8).unwrap();
-        let result = transpose(&ctx, &a, &b, 2, 3);
-        assert!(result.is_err());
+        transpose(&ctx, &a, &b, 2, 3);
     }
 }

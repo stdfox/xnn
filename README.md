@@ -1,15 +1,36 @@
 # xnn
 
-A lightweight open-source ML framework built from scratch in Rust with GPU-based architecture, designed to be easy to use and explore the fundamentals of neural network model architecture.
+A lightweight ML framework built from scratch in Rust with GPU-first architecture.
 
 ## Features
 
-- GPU acceleration via [wgpu](https://wgpu.rs/): Vulkan, Metal, DX12 on desktop, WebGPU in browser
-- Element types: f32, i32, u32
-- Cross-platform: Linux, macOS, Windows, Web
+- GPU acceleration via [wgpu](https://wgpu.rs/) (Vulkan, Metal, DX12)
+- Element types: `f32`, `i32`, `u32`
+- Cross-platform: Linux, macOS, Windows
 - Automatic compute pipeline caching
 - No unsafe code
 
+## Feature flags
+
+| Flag | Description |
+|------|-------------|
+| `unstable-kernels` | Exposes the low-level `kernel` module |
+
+### `unstable-kernels`
+
+The `kernel` module provides raw GPU compute kernels (GEMM, transpose, element-wise ops, etc.). These are **internal building blocks** not intended for direct use:
+
+- Kernels **panic** on invalid input (no `Result` return)
+- API may change without notice
+- A stable, user-friendly tensor API will be provided in the future
+
+Enable only if you need low-level GPU access and understand the risks:
+
+```toml
+[dependencies]
+xnn = { version = "0.1", features = ["unstable-kernels"] }
+```
+
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE) for details.
