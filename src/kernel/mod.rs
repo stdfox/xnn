@@ -5,16 +5,19 @@
 //!
 //! # Categories
 //!
+//! - [`activation`]: Activation functions (relu, sigmoid)
 //! - [`arithmetic`]: Element-wise arithmetic (add, sub, mul, div, rem, pow, scalar variants)
 //! - [`initializer`]: Buffer initialization (fill)
 //! - [`linalg`]: Linear algebra (gemm)
 //! - [`reduction`]: Reduction operations (sum)
 
+pub mod activation;
 pub mod arithmetic;
 pub mod initializer;
 pub mod linalg;
 pub mod reduction;
 
+pub use activation::{relu, sigmoid};
 pub use arithmetic::{
     add, add_scalar, div, div_scalar, mul, mul_scalar, pow, pow_scalar, rem, rem_scalar, sub,
     sub_scalar,
