@@ -26,7 +26,8 @@ fn bench_fill(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
-                let _ = kernel::fill(&ctx, &buf, 42.0f32).unwrap();
+                kernel::fill(&ctx, &buf, 42.0f32).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -51,7 +52,8 @@ fn bench_add(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
-                let _ = kernel::add(&ctx, &a, &b, &c).unwrap();
+                kernel::add(&ctx, &a, &b, &c).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -76,7 +78,8 @@ fn bench_sub(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
-                let _ = kernel::sub(&ctx, &a, &b, &c).unwrap();
+                kernel::sub(&ctx, &a, &b, &c).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -101,7 +104,8 @@ fn bench_mul(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
-                let _ = kernel::mul(&ctx, &a, &b, &c).unwrap();
+                kernel::mul(&ctx, &a, &b, &c).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -126,7 +130,8 @@ fn bench_div(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
-                let _ = kernel::div(&ctx, &a, &b, &c).unwrap();
+                kernel::div(&ctx, &a, &b, &c).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -151,7 +156,8 @@ fn bench_rem(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
-                let _ = kernel::rem(&ctx, &a, &b, &c).unwrap();
+                kernel::rem(&ctx, &a, &b, &c).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -176,7 +182,8 @@ fn bench_pow(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
-                let _ = kernel::pow(&ctx, &a, &b, &c).unwrap();
+                kernel::pow(&ctx, &a, &b, &c).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -201,6 +208,7 @@ fn bench_add_scalar(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
                 kernel::add_scalar(&ctx, &a, &b, &c).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -225,6 +233,7 @@ fn bench_sub_scalar(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
                 kernel::sub_scalar(&ctx, &a, &b, &c).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -249,6 +258,7 @@ fn bench_mul_scalar(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
                 kernel::mul_scalar(&ctx, &a, &b, &c).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -273,6 +283,7 @@ fn bench_div_scalar(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
                 kernel::div_scalar(&ctx, &a, &b, &c).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -297,6 +308,7 @@ fn bench_rem_scalar(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
                 kernel::rem_scalar(&ctx, &a, &b, &c).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -321,6 +333,7 @@ fn bench_pow_scalar(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
                 kernel::pow_scalar(&ctx, &a, &b, &c).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -352,6 +365,7 @@ fn bench_gemm(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
                 kernel::gemm(&ctx, &a, &b, &c, size, size, size).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }
@@ -375,6 +389,7 @@ fn bench_sum(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
             bencher.iter(|| {
                 kernel::sum(&ctx, &input, &output).unwrap();
+                kernel::sync(&ctx).unwrap();
             });
         });
     }

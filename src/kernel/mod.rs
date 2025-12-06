@@ -28,6 +28,18 @@ use crate::GpuContext;
 use crate::device::Buffer;
 use crate::error::Error;
 
+/// Synchronizes GPU operations.
+///
+/// Waits for all pending GPU commands to complete.
+#[inline]
+pub fn sync(ctx: &GpuContext) -> Result<(), Error> {
+    ctx.device()
+        .poll(wgpu::PollType::wait_indefinitely())
+        .map_err(|e| Error::Device(e.to_string()))?;
+
+    Ok(())
+}
+
 /// Debug assertion that buffer belongs to the given context.
 #[inline]
 pub(crate) fn debug_assert_same_device<T: Element>(ctx: &GpuContext, buf: &Buffer<T>, name: &str) {

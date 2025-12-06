@@ -96,11 +96,7 @@ pub fn sum<T: Element>(
         final_workgroups,
     );
 
-    // Single submit and poll
     ctx.queue().submit(Some(encoder.finish()));
-    ctx.device()
-        .poll(wgpu::PollType::wait_indefinitely())
-        .map_err(|e| Error::Device(e.to_string()))?;
 
     Ok(())
 }
