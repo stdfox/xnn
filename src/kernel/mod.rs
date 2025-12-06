@@ -8,7 +8,7 @@
 //! - [`activation`]: Activation functions (relu, sigmoid)
 //! - [`arithmetic`]: Element-wise arithmetic (add, sub, mul, div, rem, pow, scalar variants)
 //! - [`initializer`]: Buffer initialization (fill)
-//! - [`linalg`]: Linear algebra (gemm)
+//! - [`linalg`]: Linear algebra (gemm, transpose)
 //! - [`reduction`]: Reduction operations (sum)
 
 pub mod activation;
@@ -23,7 +23,7 @@ pub use arithmetic::{
     sub_scalar,
 };
 pub use initializer::fill;
-pub use linalg::gemm;
+pub use linalg::{gemm, transpose};
 pub use reduction::sum;
 
 use crate::Element;

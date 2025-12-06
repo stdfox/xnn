@@ -373,6 +373,30 @@ fn bench_gemm(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_transpose(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/transpose");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let len = size * size;
+        let a = ctx.create_buffer::<f32>(len).unwrap();
+        let b = ctx.create_buffer::<f32>(len).unwrap();
+
+        kernel::fill(&ctx, &a, 1.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                kernel::transpose(&ctx, &a, &b, size, size).unwrap();
+                kernel::sync(&ctx).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
 fn bench_sum(c: &mut Criterion) {
     let ctx = GpuContext::default();
 
@@ -461,6 +485,7 @@ criterion::criterion_group!(
     bench_rem_scalar,
     bench_pow_scalar,
     bench_gemm,
+    bench_transpose,
     bench_sum,
     bench_relu,
     bench_sigmoid

@@ -39,8 +39,9 @@ const MAX_WORKGROUPS_PER_DISPATCH: u32 = 65536;
 /// # Errors
 ///
 /// Returns [`Error::Kernel`](crate::Error::Kernel) if buffer sizes do not match
-/// matrix dimensions. Returns [`Error::Device`](crate::Error::Device) if matrix
-/// dimensions exceed `u32::MAX`.
+/// matrix dimensions.
+/// Returns [`Error::Device`](crate::Error::Device) if matrix dimensions
+/// exceed `u32::MAX`.
 ///
 /// # Panics
 ///
