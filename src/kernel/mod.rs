@@ -10,12 +10,14 @@
 //! - [`initializer`]: Buffer initialization (fill)
 //! - [`linalg`]: Linear algebra (gemm, transpose)
 //! - [`reduction`]: Reduction operations (sum)
+//! - [`shape`]: Shape manipulation (broadcast_rows)
 
 pub mod activation;
 pub mod arithmetic;
 pub mod initializer;
 pub mod linalg;
 pub mod reduction;
+pub mod shape;
 
 pub use activation::{relu, sigmoid};
 pub use arithmetic::{
@@ -25,6 +27,7 @@ pub use arithmetic::{
 pub use initializer::fill;
 pub use linalg::{gemm, transpose};
 pub use reduction::sum;
+pub use shape::broadcast_rows;
 
 use crate::Element;
 use crate::GpuContext;

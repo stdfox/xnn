@@ -469,6 +469,29 @@ fn bench_sigmoid(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_broadcast_rows(c: &mut Criterion) {
+    let ctx = GpuContext::default();
+
+    let mut group = c.benchmark_group("kernel/broadcast_rows");
+    configure(&mut group);
+
+    for &size in SIZES {
+        let a = ctx.create_buffer::<f32>(size).unwrap();
+        let b = ctx.create_buffer::<f32>(size * size).unwrap();
+
+        kernel::fill(&ctx, &a, 1.0f32).unwrap();
+
+        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
+            bencher.iter(|| {
+                kernel::broadcast_rows(&ctx, &a, &b, size, size).unwrap();
+                kernel::sync(&ctx).unwrap();
+            });
+        });
+    }
+
+    group.finish();
+}
+
 criterion::criterion_group!(
     benches,
     bench_fill,
@@ -488,6 +511,7 @@ criterion::criterion_group!(
     bench_transpose,
     bench_sum,
     bench_relu,
-    bench_sigmoid
+    bench_sigmoid,
+    bench_broadcast_rows
 );
 criterion::criterion_main!(benches);
