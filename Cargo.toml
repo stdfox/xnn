@@ -28,5 +28,13 @@ name = "kernel"
 harness = false
 required-features = ["unstable-kernels"]
 
+[[example]]
+name = "linreg"
+required-features = ["unstable-kernels"]
+
+[[example]]
+name = "xor"
+required-features = ["unstable-kernels"]
+
 [lints.rust]
 unsafe_code = "forbid"

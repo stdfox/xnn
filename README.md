@@ -31,6 +31,26 @@ Enable only if you need low-level GPU access and understand the risks:
 xnn = { version = "0.1", features = ["unstable-kernels"] }
 ```
 
+## Examples
+
+Examples require the `unstable-kernels` feature flag.
+
+### Linear regression
+
+Trains a simple linear model to fit `y = 2x + 1`.
+
+```sh
+cargo run --release --features=unstable-kernels --example linreg
+```
+
+### XOR
+
+Trains a 2-layer neural network to solve the XOR problem.
+
+```sh
+cargo run --release --features=unstable-kernels --example xor
+```
+
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
