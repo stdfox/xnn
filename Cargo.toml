@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2024"
 authors = ["stdfox <stdfox@protonmail.com>"]
 license = "MIT"
-description = "A tiny open-source ML framework built from scratch in Rust"
+description = "A lightweight ML framework with GPU-first architecture"
 repository = "https://github.com/stdfox/xnn"
+documentation = "https://docs.rs/xnn"
 readme = "README.md"
+exclude = [".editorconfig", ".gitignore"]
 
 [features]
 default = []

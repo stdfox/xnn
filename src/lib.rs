@@ -19,10 +19,10 @@
 
 extern crate alloc;
 
-#[cfg(feature = "unstable-kernels")]
+#[cfg(any(feature = "unstable-kernels", doc))]
 pub mod kernel;
 
-#[cfg(not(feature = "unstable-kernels"))]
+#[cfg(all(not(feature = "unstable-kernels"), not(doc)))]
 #[allow(unused_imports)]
 #[allow(dead_code)]
 pub(crate) mod kernel;
