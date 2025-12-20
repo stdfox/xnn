@@ -28,7 +28,7 @@ fn random_vec(len: usize) -> Vec<f32> {
     (0..len).map(|_| rng.random()).collect()
 }
 
-pub fn bench_constant(c: &mut Criterion) {
+fn bench_constant(c: &mut Criterion) {
     let ctx = Context::try_default().unwrap();
     let mut group = configure(c, "tensor/constant");
 
@@ -51,124 +51,79 @@ pub fn bench_constant(c: &mut Criterion) {
     group.finish();
 }
 
-pub fn bench_copy(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
-    let mut group = configure(c, "tensor/copy");
+macro_rules! bench_unary_op {
+    ($name:ident, $op:ident) => {
+        fn $name(c: &mut Criterion) {
+            let ctx = Context::try_default().unwrap();
+            let mut group = configure(c, concat!("tensor/", stringify!($op)));
 
-    for &(name, dims) in SIZES {
-        let len: usize = dims.iter().product();
-        let tensor = Tensor::<f32>::constant(&ctx, dims, &random_vec(len)).unwrap();
+            for &(name, dims) in SIZES {
+                let len: usize = dims.iter().product();
+                let tensor = Tensor::<f32>::constant(&ctx, dims, &random_vec(len)).unwrap();
 
-        group.throughput(Throughput::ElementsAndBytes {
-            elements: len as u64,
-            bytes: (len * size_of::<f32>()) as u64,
-        });
-
-        group.bench_with_input(
-            BenchmarkId::from_parameter(name),
-            &tensor,
-            |bencher, tensor| {
-                bencher.iter(|| {
-                    let _ = tensor.copy().unwrap();
-                    ctx.poll().unwrap();
+                group.throughput(Throughput::ElementsAndBytes {
+                    elements: len as u64,
+                    bytes: (len * size_of::<f32>()) as u64,
                 });
-            },
-        );
-    }
 
-    group.finish();
+                group.bench_with_input(
+                    BenchmarkId::from_parameter(name),
+                    &tensor,
+                    |bencher, tensor| {
+                        bencher.iter(|| {
+                            let _ = tensor.$op().unwrap();
+                            ctx.poll().unwrap();
+                        });
+                    },
+                );
+            }
+
+            group.finish();
+        }
+    };
 }
 
-pub fn bench_abs(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
-    let mut group = configure(c, "tensor/abs");
-
-    for &(name, dims) in SIZES {
-        let len: usize = dims.iter().product();
-        let tensor = Tensor::<f32>::constant(&ctx, dims, &random_vec(len)).unwrap();
-
-        group.throughput(Throughput::ElementsAndBytes {
-            elements: len as u64,
-            bytes: (len * size_of::<f32>()) as u64,
-        });
-
-        group.bench_with_input(
-            BenchmarkId::from_parameter(name),
-            &tensor,
-            |bencher, tensor| {
-                bencher.iter(|| {
-                    let _ = tensor.abs().unwrap();
-                    ctx.poll().unwrap();
-                });
-            },
-        );
-    }
-
-    group.finish();
-}
-
-pub fn bench_sign(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
-    let mut group = configure(c, "tensor/sign");
-
-    for &(name, dims) in SIZES {
-        let len: usize = dims.iter().product();
-        let tensor = Tensor::<f32>::constant(&ctx, dims, &random_vec(len)).unwrap();
-
-        group.throughput(Throughput::ElementsAndBytes {
-            elements: len as u64,
-            bytes: (len * size_of::<f32>()) as u64,
-        });
-
-        group.bench_with_input(
-            BenchmarkId::from_parameter(name),
-            &tensor,
-            |bencher, tensor| {
-                bencher.iter(|| {
-                    let _ = tensor.sign().unwrap();
-                    ctx.poll().unwrap();
-                });
-            },
-        );
-    }
-
-    group.finish();
-}
-
-pub fn bench_neg(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
-    let mut group = configure(c, "tensor/neg");
-
-    for &(name, dims) in SIZES {
-        let len: usize = dims.iter().product();
-        let tensor = Tensor::<f32>::constant(&ctx, dims, &random_vec(len)).unwrap();
-
-        group.throughput(Throughput::ElementsAndBytes {
-            elements: len as u64,
-            bytes: (len * size_of::<f32>()) as u64,
-        });
-
-        group.bench_with_input(
-            BenchmarkId::from_parameter(name),
-            &tensor,
-            |bencher, tensor| {
-                bencher.iter(|| {
-                    let _ = tensor.neg().unwrap();
-                    ctx.poll().unwrap();
-                });
-            },
-        );
-    }
-
-    group.finish();
-}
+bench_unary_op!(bench_abs, abs);
+bench_unary_op!(bench_acos, acos);
+bench_unary_op!(bench_acosh, acosh);
+bench_unary_op!(bench_asin, asin);
+bench_unary_op!(bench_asinh, asinh);
+bench_unary_op!(bench_atan, atan);
+bench_unary_op!(bench_atanh, atanh);
+bench_unary_op!(bench_copy, copy);
+bench_unary_op!(bench_cos, cos);
+bench_unary_op!(bench_cosh, cosh);
+bench_unary_op!(bench_exp, exp);
+bench_unary_op!(bench_log, log);
+bench_unary_op!(bench_neg, neg);
+bench_unary_op!(bench_rcp, rcp);
+bench_unary_op!(bench_sign, sign);
+bench_unary_op!(bench_sin, sin);
+bench_unary_op!(bench_sinh, sinh);
+bench_unary_op!(bench_tan, tan);
+bench_unary_op!(bench_tanh, tanh);
 
 criterion::criterion_group!(
     benches,
     bench_constant,
-    bench_copy,
     bench_abs,
-    bench_sign,
+    bench_acos,
+    bench_acosh,
+    bench_asin,
+    bench_asinh,
+    bench_atan,
+    bench_atanh,
+    bench_copy,
+    bench_cos,
+    bench_cosh,
+    bench_exp,
+    bench_log,
     bench_neg,
+    bench_rcp,
+    bench_sign,
+    bench_sin,
+    bench_sinh,
+    bench_tan,
+    bench_tanh,
 );
 criterion::criterion_main!(benches);

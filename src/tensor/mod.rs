@@ -6,7 +6,7 @@ mod ops;
 use core::any::TypeId;
 
 use crate::error::{Error, TensorError};
-use crate::{Buffer, Context, Element, NumericElement, SignedElement};
+use crate::{Buffer, Context, Element, FloatElement, NumericElement, SignedElement};
 use layout::Layout;
 
 /// N-dimensional tensor with GPU-backed storage.
@@ -162,6 +162,159 @@ impl<T: SignedElement> Tensor<T> {
     pub fn neg(&self) -> Result<Self, Error> {
         let buffer = self.ctx.create_buffer(self.buffer.len())?;
         ops::neg(&self.ctx, &self.buffer, &buffer)?;
+
+        Ok(Self {
+            buffer,
+            layout: self.layout.clone(),
+            ctx: self.ctx.clone(),
+        })
+    }
+}
+
+impl<T: FloatElement> Tensor<T> {
+    /// Computes arc cosine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn acos(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::acos)
+    }
+
+    /// Computes inverse hyperbolic cosine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn acosh(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::acosh)
+    }
+
+    /// Computes arc sine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn asin(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::asin)
+    }
+
+    /// Computes inverse hyperbolic sine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn asinh(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::asinh)
+    }
+
+    /// Computes arc tangent element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn atan(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::atan)
+    }
+
+    /// Computes inverse hyperbolic tangent element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn atanh(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::atanh)
+    }
+
+    /// Computes cosine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn cos(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::cos)
+    }
+
+    /// Computes hyperbolic cosine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn cosh(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::cosh)
+    }
+
+    /// Computes exponential (e^x) element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn exp(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::exp)
+    }
+
+    /// Computes natural logarithm element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn log(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::log)
+    }
+
+    /// Computes reciprocal (1/x) element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn rcp(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::rcp)
+    }
+
+    /// Computes sine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn sin(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::sin)
+    }
+
+    /// Computes hyperbolic sine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn sinh(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::sinh)
+    }
+
+    /// Computes tangent element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn tan(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::tan)
+    }
+
+    /// Computes hyperbolic tangent element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn tanh(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::tanh)
+    }
+
+    /// Applies a unary float operation and returns a new tensor.
+    #[allow(clippy::type_complexity)]
+    fn unary_float_op(
+        &self,
+        op: fn(&Context, &Buffer<T>, &Buffer<T>) -> Result<(), Error>,
+    ) -> Result<Self, Error> {
+        let buffer = self.ctx.create_buffer(self.buffer.len())?;
+        op(&self.ctx, &self.buffer, &buffer)?;
 
         Ok(Self {
             buffer,

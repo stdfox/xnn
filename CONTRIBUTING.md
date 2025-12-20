@@ -15,7 +15,7 @@ cargo fmt
 Run linter with strict settings:
 
 ```bash
-cargo clippy --all -- -W clippy::all -W clippy::pedantic -D warnings
+cargo clippy --all-targets --all-features
 ```
 
 ## Testing
@@ -23,7 +23,7 @@ cargo clippy --all -- -W clippy::all -W clippy::pedantic -D warnings
 Run all tests before submitting changes:
 
 ```bash
-cargo test
+cargo test --all-features
 ```
 
 ## Benchmarks
@@ -32,16 +32,16 @@ This project uses [Criterion](https://bheisler.github.io/criterion.rs/book/) for
 
 ### Running benchmarks
 
-Run all kernel benchmarks:
+Run all tensor benchmarks:
 
 ```bash
-cargo bench --bench kernel --features unstable-kernels
+cargo bench --bench tensor
 ```
 
-Run specific kernel benchmark:
+Run specific tensor benchmark:
 
 ```bash
-cargo bench --bench kernel --features unstable-kernels -- kernel/gemm
+cargo bench --bench tensor -- copy
 ```
 
 ### Comparing performance
@@ -49,19 +49,25 @@ cargo bench --bench kernel --features unstable-kernels -- kernel/gemm
 Save baseline before making changes (**run it at least twice** to ensure GPU warmup for more stable results):
 
 ```bash
-cargo bench --bench kernel --features unstable-kernels -- --noplot --quiet --save-baseline main
+cargo bench --bench tensor -- --noplot --save-baseline main --quiet
+```
+
+Save baseline for specific operation:
+
+```bash
+cargo bench --bench tensor -- copy --noplot --save-baseline main --quiet
 ```
 
 Compare current performance against baseline:
 
 ```bash
-cargo bench --bench kernel --features unstable-kernels -- --noplot --baseline main
+cargo bench --bench tensor -- --noplot --baseline main
 ```
 
-Compare specific kernel:
+Compare specific tensor:
 
 ```bash
-cargo bench --bench kernel --features unstable-kernels -- kernel/gemm --noplot --baseline main
+cargo bench --bench tensor -- copy --noplot --baseline main
 ```
 
 ## Commit Message Guidelines
