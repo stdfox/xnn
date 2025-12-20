@@ -4,29 +4,22 @@ use core::marker::PhantomData;
 
 use crate::Element;
 
-/// Typed wrapper around a GPU buffer.
+/// Typed GPU buffer for element storage.
+#[derive(Clone)]
 pub struct Buffer<T: Element> {
-    #[allow(clippy::struct_field_names)]
-    buffer: wgpu::Buffer,
+    inner: wgpu::Buffer,
     len: usize,
-    adapter_index: usize,
     _marker: PhantomData<T>,
 }
 
 impl<T: Element> Buffer<T> {
     /// Creates a new buffer wrapper.
-    pub(crate) fn new(buffer: wgpu::Buffer, len: usize, adapter_index: usize) -> Self {
+    pub(crate) fn new(buffer: wgpu::Buffer, len: usize) -> Self {
         Self {
-            buffer,
+            inner: buffer,
             len,
-            adapter_index,
             _marker: PhantomData,
         }
-    }
-
-    /// Returns the adapter index this buffer belongs to.
-    pub(crate) fn adapter_index(&self) -> usize {
-        self.adapter_index
     }
 
     /// Returns the number of elements.
@@ -41,48 +34,51 @@ impl<T: Element> Buffer<T> {
 
     /// Returns the underlying wgpu buffer.
     pub(crate) fn inner(&self) -> &wgpu::Buffer {
-        &self.buffer
+        &self.inner
+    }
+}
+
+impl<T: Element> core::fmt::Debug for Buffer<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct(&format!("Buffer<{}>", T::wgsl_type()))
+            .field("len", &self.len)
+            .finish_non_exhaustive()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::GpuContext;
+    use crate::Context;
 
     use super::*;
 
     #[test]
     fn test_new() {
-        let ctx = GpuContext::default();
+        // create buffer wrapper from wgpu buffer
+        let ctx = Context::try_default().unwrap();
         let wgpu_buf = ctx.device().create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: 256,
             usage: wgpu::BufferUsages::STORAGE,
             mapped_at_creation: false,
         });
-        let buf: Buffer<f32> = Buffer::new(wgpu_buf, 64, ctx.adapter_index());
-        assert_eq!(buf.adapter_index(), ctx.adapter_index());
+        let buf: Buffer<f32> = Buffer::new(wgpu_buf, 64);
         assert_eq!(buf.inner().size(), 256);
         assert_eq!(buf.len(), 64);
     }
 
     #[test]
-    fn test_adapter_index() {
-        let ctx = GpuContext::default();
-        let buf = ctx.create_buffer::<f32>(4).unwrap();
-        assert_eq!(buf.adapter_index(), ctx.adapter_index());
-    }
-
-    #[test]
     fn test_len() {
-        let ctx = GpuContext::default();
+        // returns element count
+        let ctx = Context::try_default().unwrap();
         let buf = ctx.create_buffer::<f32>(4).unwrap();
         assert_eq!(buf.len(), 4);
     }
 
     #[test]
     fn test_is_empty() {
-        let ctx = GpuContext::default();
+        // empty buffer has zero length
+        let ctx = Context::try_default().unwrap();
 
         let empty = ctx.create_buffer::<f32>(0).unwrap();
         assert!(empty.is_empty());
@@ -93,9 +89,20 @@ mod tests {
 
     #[test]
     fn test_inner() {
-        let ctx = GpuContext::default();
+        // access underlying wgpu buffer
+        let ctx = Context::try_default().unwrap();
         let buf = ctx.create_buffer::<f32>(4).unwrap();
         assert_eq!(buf.inner().size(), 16);
         assert_eq!(buf.len(), 4);
+    }
+
+    #[test]
+    fn test_debug() {
+        // debug output contains type and length
+        let ctx = Context::try_default().unwrap();
+        let buf = ctx.create_buffer::<f32>(4).unwrap();
+        let debug = format!("{buf:?}");
+        assert!(debug.contains("Buffer<f32>"));
+        assert!(debug.contains("len"));
     }
 }

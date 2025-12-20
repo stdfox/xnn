@@ -5,8 +5,8 @@
 
 use wgpu::util::DeviceExt as _;
 
-use crate::kernel::{debug_assert_len, debug_assert_same_device};
-use crate::{Buffer, FloatElement, GpuContext};
+use crate::kernel::debug_assert_len;
+use crate::{Buffer, Context, FloatElement};
 
 /// Block size for register tiling (each thread computes BM×BN elements).
 const BLOCK_SIZE: u32 = 4;
@@ -42,10 +42,9 @@ const MAX_WORKGROUPS_PER_DISPATCH: u32 = 65536;
 /// - (debug) Buffer `a` length does not match `m * k`.
 /// - (debug) Buffer `b` length does not match `k * n`.
 /// - (debug) Buffer `c` length does not match `m * n`.
-/// - (debug) Any buffer belongs to a different device than `ctx`.
 #[allow(clippy::many_single_char_names)]
 pub fn gemm<T: FloatElement>(
-    ctx: &GpuContext,
+    ctx: &Context,
     a: &Buffer<T>,
     b: &Buffer<T>,
     c: &Buffer<T>,
@@ -53,9 +52,6 @@ pub fn gemm<T: FloatElement>(
     k: usize,
     n: usize,
 ) {
-    debug_assert_same_device(ctx, a, "a");
-    debug_assert_same_device(ctx, b, "b");
-    debug_assert_same_device(ctx, c, "c");
     debug_assert_len(a, m * k, "a");
     debug_assert_len(b, k * n, "b");
     debug_assert_len(c, m * n, "c");
@@ -313,7 +309,7 @@ mod tests {
 
     #[test]
     fn test_gemm_square() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         // 2x2 matrix multiplication
         let a = ctx
@@ -332,7 +328,7 @@ mod tests {
 
     #[test]
     fn test_gemm_rectangular() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         // A: 2x3, B: 3x2, C: 2x2
         let a = ctx
@@ -351,7 +347,7 @@ mod tests {
 
     #[test]
     fn test_gemm_identity() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         // Multiply by identity matrix
         let a = ctx
@@ -370,7 +366,7 @@ mod tests {
 
     #[test]
     fn test_gemm_large() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let m = 64;
         let k = 32;
@@ -395,7 +391,7 @@ mod tests {
 
     #[test]
     fn test_gemm_empty() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let a = ctx.create_buffer::<f32>(0).unwrap();
         let b = ctx.create_buffer::<f32>(0).unwrap();
@@ -407,7 +403,7 @@ mod tests {
     #[test]
     #[cfg_attr(debug_assertions, should_panic(expected = "length mismatch"))]
     fn test_gemm_assert_len() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let a = ctx.create_buffer::<f32>(6).unwrap(); // 2x3
         let b = ctx.create_buffer::<f32>(6).unwrap(); // 3x2

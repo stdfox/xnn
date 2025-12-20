@@ -4,8 +4,8 @@
 
 use wgpu::util::DeviceExt as _;
 
-use crate::kernel::{debug_assert_len, debug_assert_same_device};
-use crate::{Buffer, Element, GpuContext};
+use crate::kernel::debug_assert_len;
+use crate::{Buffer, Context, Element};
 
 /// Workgroup size for compute shader.
 const WORKGROUP_SIZE: u32 = 256;
@@ -28,16 +28,13 @@ const MAX_WORKGROUPS_PER_DIM: u32 = 65535;
 /// - Dimensions exceed `u32::MAX`.
 /// - (debug) Buffer `a` length does not match `cols`.
 /// - (debug) Buffer `b` length does not match `rows * cols`.
-/// - (debug) Any buffer belongs to a different device than `ctx`.
 pub fn broadcast_rows<T: Element>(
-    ctx: &GpuContext,
+    ctx: &Context,
     a: &Buffer<T>,
     b: &Buffer<T>,
     rows: usize,
     cols: usize,
 ) {
-    debug_assert_same_device(ctx, a, "a");
-    debug_assert_same_device(ctx, b, "b");
     debug_assert_len(a, cols, "a");
     debug_assert_len(b, rows * cols, "b");
 
@@ -149,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_broadcast_rows() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let a = ctx.create_buffer_from_slice(&[1.0f32, 2.0, 3.0]).unwrap();
         let b = ctx.create_buffer::<f32>(12).unwrap();
@@ -165,7 +162,7 @@ mod tests {
 
     #[test]
     fn test_broadcast_rows_single_col() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let a = ctx.create_buffer_from_slice(&[5.0f32]).unwrap();
         let b = ctx.create_buffer::<f32>(4).unwrap();
@@ -178,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_broadcast_rows_non_aligned() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let a = ctx.create_buffer_from_slice(&[1.0f32, 2.0]).unwrap();
         let b = ctx.create_buffer::<f32>(42).unwrap();
@@ -194,7 +191,7 @@ mod tests {
 
     #[test]
     fn test_broadcast_rows_large() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let size = 4096;
         let a = ctx.create_buffer::<f32>(size).unwrap();
@@ -211,7 +208,7 @@ mod tests {
 
     #[test]
     fn test_broadcast_rows_empty() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let a = ctx.create_buffer::<f32>(0).unwrap();
         let b = ctx.create_buffer::<f32>(0).unwrap();
@@ -221,7 +218,7 @@ mod tests {
     #[test]
     #[cfg_attr(debug_assertions, should_panic(expected = "length mismatch"))]
     fn test_broadcast_rows_assert_len() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let a = ctx.create_buffer::<f32>(3).unwrap();
         let b = ctx.create_buffer::<f32>(12).unwrap();

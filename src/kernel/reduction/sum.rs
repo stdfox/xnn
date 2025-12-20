@@ -2,8 +2,8 @@
 //!
 //! Reduces a buffer to a single sum value using parallel reduction.
 
-use crate::kernel::{debug_assert_len, debug_assert_same_device};
-use crate::{Buffer, Element, GpuContext};
+use crate::kernel::debug_assert_len;
+use crate::{Buffer, Context, Element};
 
 /// Workgroup size for the sum kernel.
 const WORKGROUP_SIZE: u32 = 256;
@@ -16,10 +16,7 @@ const WORKGROUP_SIZE: u32 = 256;
 ///
 /// - Input buffer length exceeds `u32::MAX`.
 /// - (debug) Output buffer length is not 1.
-/// - (debug) Any buffer belongs to a different device than `ctx`.
-pub fn sum<T: Element>(ctx: &GpuContext, input: &Buffer<T>, output: &Buffer<T>) {
-    debug_assert_same_device(ctx, input, "input");
-    debug_assert_same_device(ctx, output, "output");
+pub fn sum<T: Element>(ctx: &Context, input: &Buffer<T>, output: &Buffer<T>) {
     debug_assert_len(output, 1, "output");
 
     if input.is_empty() {
@@ -96,7 +93,7 @@ pub fn sum<T: Element>(ctx: &GpuContext, input: &Buffer<T>, output: &Buffer<T>) 
 
 /// Encodes a single reduction pass into the command encoder.
 fn encode_reduce_pass<T: Element>(
-    ctx: &GpuContext,
+    ctx: &Context,
     pipeline: &wgpu::ComputePipeline,
     encoder: &mut wgpu::CommandEncoder,
     input: &Buffer<T>,
@@ -129,7 +126,7 @@ fn encode_reduce_pass<T: Element>(
 }
 
 /// Copies one element from src to dst.
-fn copy_buffer<T: Element>(ctx: &GpuContext, src: &Buffer<T>, dst: &Buffer<T>) {
+fn copy_buffer<T: Element>(ctx: &Context, src: &Buffer<T>, dst: &Buffer<T>) {
     let size = core::mem::size_of::<T>() as u64;
     let mut encoder = ctx
         .device()
@@ -222,7 +219,7 @@ mod tests {
 
     #[test]
     fn test_sum_single() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let input = ctx.create_buffer_from_slice(&[42.0f32]).unwrap();
         let output = ctx.create_buffer::<f32>(1).unwrap();
@@ -232,7 +229,7 @@ mod tests {
 
     #[test]
     fn test_sum_small() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         // f32
         let input = ctx
@@ -257,7 +254,7 @@ mod tests {
 
     #[test]
     fn test_sum_large() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let len = 4096 * 4096;
         let data: Vec<f32> = vec![1.0; len];
@@ -274,7 +271,7 @@ mod tests {
 
     #[test]
     fn test_sum_empty() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let input = ctx.create_buffer::<f32>(0).unwrap();
         let output = ctx.create_buffer::<f32>(1).unwrap();
@@ -284,7 +281,7 @@ mod tests {
 
     #[test]
     fn test_sum_non_aligned() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let input = ctx
             .create_buffer_from_slice(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])
@@ -297,7 +294,7 @@ mod tests {
     #[test]
     #[cfg_attr(debug_assertions, should_panic(expected = "length mismatch"))]
     fn test_sum_assert_len() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let input = ctx.create_buffer_from_slice(&[1.0f32, 2.0]).unwrap();
         let output = ctx.create_buffer::<f32>(2).unwrap();

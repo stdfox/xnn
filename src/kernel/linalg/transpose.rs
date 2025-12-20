@@ -4,8 +4,8 @@
 
 use wgpu::util::DeviceExt as _;
 
-use crate::kernel::{debug_assert_len, debug_assert_same_device};
-use crate::{Buffer, Element, GpuContext};
+use crate::kernel::debug_assert_len;
+use crate::{Buffer, Context, Element};
 
 /// Tile size for workgroup (16×16 threads).
 const TILE_SIZE: u32 = 16;
@@ -25,16 +25,13 @@ const TILE_SIZE: u32 = 16;
 /// - Matrix dimensions exceed `u32::MAX`.
 /// - (debug) Buffer `a` length does not match `rows * cols`.
 /// - (debug) Buffer `b` length does not match `rows * cols`.
-/// - (debug) Any buffer belongs to a different device than `ctx`.
 pub fn transpose<T: Element>(
-    ctx: &GpuContext,
+    ctx: &Context,
     a: &Buffer<T>,
     b: &Buffer<T>,
     rows: usize,
     cols: usize,
 ) {
-    debug_assert_same_device(ctx, a, "a");
-    debug_assert_same_device(ctx, b, "b");
     debug_assert_len(a, rows * cols, "a");
     debug_assert_len(b, rows * cols, "b");
 
@@ -166,7 +163,7 @@ mod tests {
 
     #[test]
     fn test_transpose() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         // 2x3 -> 3x2
         let a = ctx
@@ -182,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_transpose_square() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         // 3x3 transpose
         let a = ctx
@@ -198,7 +195,7 @@ mod tests {
 
     #[test]
     fn test_transpose_single_row() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         // 1x4 -> 4x1
         let a = ctx
@@ -214,7 +211,7 @@ mod tests {
 
     #[test]
     fn test_transpose_single_col() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         // 4x1 -> 1x4
         let a = ctx
@@ -230,7 +227,7 @@ mod tests {
 
     #[test]
     fn test_transpose_non_aligned() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         // 7x6 -> 6x7 (42 elements, non-tile-aligned)
         let rows = 7;
@@ -251,7 +248,7 @@ mod tests {
 
     #[test]
     fn test_transpose_large() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         // 4096x4096 square matrix
         let size = 4096;
@@ -271,7 +268,7 @@ mod tests {
 
     #[test]
     fn test_transpose_empty() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
         let a = ctx.create_buffer::<f32>(0).unwrap();
         let b = ctx.create_buffer::<f32>(0).unwrap();
         transpose(&ctx, &a, &b, 0, 0);
@@ -280,7 +277,7 @@ mod tests {
     #[test]
     #[cfg_attr(debug_assertions, should_panic(expected = "length mismatch"))]
     fn test_transpose_assert_len() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
         let a = ctx.create_buffer::<f32>(6).unwrap();
         let b = ctx.create_buffer::<f32>(8).unwrap();
         transpose(&ctx, &a, &b, 2, 3);

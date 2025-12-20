@@ -2,8 +2,8 @@
 //!
 //! Applies the Rectified Linear Unit activation function using a compute shader.
 
-use crate::kernel::{debug_assert_same_device, debug_assert_same_len};
-use crate::{Buffer, FloatElement, GpuContext};
+use crate::kernel::debug_assert_same_len;
+use crate::{Buffer, Context, FloatElement};
 
 /// Workgroup size for the `relu` kernel.
 const WORKGROUP_SIZE: u32 = 256;
@@ -19,10 +19,7 @@ const MAX_WORKGROUPS_PER_DIM: u32 = 65535;
 ///
 /// - Buffer length exceeds `u32::MAX`.
 /// - (debug) Buffer lengths do not match.
-/// - (debug) Buffer belongs to a different device than `ctx`.
-pub fn relu<T: FloatElement>(ctx: &GpuContext, a: &Buffer<T>, b: &Buffer<T>) {
-    debug_assert_same_device(ctx, a, "a");
-    debug_assert_same_device(ctx, b, "b");
+pub fn relu<T: FloatElement>(ctx: &Context, a: &Buffer<T>, b: &Buffer<T>) {
     debug_assert_same_len(a, b, "b");
 
     if a.is_empty() {
@@ -118,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_relu() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         // f32 - basic
         let a = ctx
@@ -170,7 +167,7 @@ mod tests {
     #[test]
     #[cfg_attr(debug_assertions, should_panic(expected = "buffer length mismatch"))]
     fn test_relu_length_mismatch() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let a = ctx.create_buffer::<f32>(4).unwrap();
         let b = ctx.create_buffer::<f32>(8).unwrap();

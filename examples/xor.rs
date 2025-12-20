@@ -3,11 +3,11 @@
 //! Learns XOR function using a 2-layer neural network (2 -> 2 -> 1).
 //! All computations are performed on GPU using kernels.
 
-use xnn::GpuContext;
+use xnn::Context;
 use xnn::kernel::{add, broadcast_rows, fill, gemm, mul, mul_scalar, sigmoid, sub, sum, transpose};
 
 fn main() -> Result<(), Box<dyn core::error::Error>> {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     // Hyperparameters
     let lr = 0.5f32;

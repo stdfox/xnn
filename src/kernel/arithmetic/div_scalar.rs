@@ -2,8 +2,8 @@
 //!
 //! Divides each element of a buffer by a scalar using a compute shader.
 
-use crate::kernel::{debug_assert_len, debug_assert_same_device, debug_assert_same_len};
-use crate::{Buffer, Element, GpuContext};
+use crate::kernel::{debug_assert_len, debug_assert_same_len};
+use crate::{Buffer, Context, Element};
 
 /// Workgroup size for the `div_scalar` kernel.
 const WORKGROUP_SIZE: u32 = 256;
@@ -22,11 +22,7 @@ const MAX_WORKGROUPS_PER_DIM: u32 = 65535;
 /// - Buffer length exceeds `u32::MAX`.
 /// - (debug) Buffer `b` does not have exactly one element.
 /// - (debug) Buffer lengths of `a` and `c` do not match.
-/// - (debug) Buffer belongs to a different device than `ctx`.
-pub fn div_scalar<T: Element>(ctx: &GpuContext, a: &Buffer<T>, b: &Buffer<T>, c: &Buffer<T>) {
-    debug_assert_same_device(ctx, a, "a");
-    debug_assert_same_device(ctx, b, "b");
-    debug_assert_same_device(ctx, c, "c");
+pub fn div_scalar<T: Element>(ctx: &Context, a: &Buffer<T>, b: &Buffer<T>, c: &Buffer<T>) {
     debug_assert_same_len(a, c, "c");
     debug_assert_len(b, 1, "b");
 
@@ -130,7 +126,7 @@ mod tests {
 
     #[test]
     fn test_div_scalar() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         // f32
         let a = ctx
@@ -193,7 +189,7 @@ mod tests {
     #[test]
     #[cfg_attr(debug_assertions, should_panic(expected = "buffer length mismatch"))]
     fn test_div_scalar_assert_same_len() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let a = ctx.create_buffer::<f32>(4).unwrap();
         let b = ctx.create_buffer_from_slice(&[42.0f32]).unwrap();
@@ -205,7 +201,7 @@ mod tests {
     #[test]
     #[cfg_attr(debug_assertions, should_panic(expected = "length mismatch"))]
     fn test_div_scalar_assert_len() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         let a = ctx.create_buffer::<f32>(4).unwrap();
         let b = ctx.create_buffer_from_slice(&[1.0f32, 2.0]).unwrap();

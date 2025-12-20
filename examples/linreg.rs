@@ -3,11 +3,11 @@
 //! Learns y = 2x + 1 from synthetic data.
 //! All computations are performed on GPU using kernels.
 
-use xnn::GpuContext;
+use xnn::Context;
 use xnn::kernel::{add_scalar, fill, mul, mul_scalar, sub, sum};
 
 fn main() -> Result<(), Box<dyn core::error::Error>> {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     // Hyperparameters
     let n = 2048;

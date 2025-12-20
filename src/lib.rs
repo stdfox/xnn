@@ -5,7 +5,7 @@
 //!
 //! # Types
 //!
-//! - [`GpuContext`] — GPU context for buffer and pipeline management.
+//! - [`Context`] — GPU context for buffer and pipeline management.
 //! - [`Buffer`] — typed GPU buffer for element data.
 //! - [`Element`] — trait for GPU-compatible types (`f32`, `i32`, `u32`).
 //! - [`FloatElement`] — marker trait for floating-point types (`f32`).
@@ -19,18 +19,12 @@
 
 extern crate alloc;
 
-#[cfg(any(feature = "unstable-kernels", doc))]
 pub mod kernel;
-
-#[cfg(all(not(feature = "unstable-kernels"), not(doc)))]
-#[allow(unused_imports)]
-#[allow(dead_code)]
-pub(crate) mod kernel;
 
 mod device;
 mod element;
 mod error;
 
-pub use device::{Buffer, GpuContext};
+pub use device::{Buffer, Context};
 pub use element::{Element, FloatElement};
 pub use error::Error;

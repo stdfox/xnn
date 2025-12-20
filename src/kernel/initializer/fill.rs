@@ -4,8 +4,7 @@
 
 use wgpu::util::DeviceExt as _;
 
-use crate::kernel::debug_assert_same_device;
-use crate::{Buffer, Element, GpuContext};
+use crate::{Buffer, Context, Element};
 
 /// Workgroup size for the fill kernel.
 const WORKGROUP_SIZE: u32 = 256;
@@ -21,9 +20,7 @@ const MAX_WORKGROUPS_PER_DIM: u32 = 65535;
 ///
 /// - Buffer length exceeds `u32::MAX`.
 /// - (debug) Buffer belongs to a different device than `ctx`.
-pub fn fill<T: Element>(ctx: &GpuContext, buf: &Buffer<T>, value: T) {
-    debug_assert_same_device(ctx, buf, "buf");
-
+pub fn fill<T: Element>(ctx: &Context, buf: &Buffer<T>, value: T) {
     if buf.is_empty() {
         return;
     }
@@ -125,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_fill() {
-        let ctx = GpuContext::default();
+        let ctx = Context::try_default().unwrap();
 
         // f32
         let buf = ctx.create_buffer::<f32>(4).unwrap();

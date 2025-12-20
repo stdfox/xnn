@@ -6,7 +6,7 @@ use criterion::measurement::WallTime;
 use criterion::{BenchmarkGroup, BenchmarkId, Criterion};
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
-use xnn::{GpuContext, kernel};
+use xnn::{Context, kernel};
 
 const SIZES: &[usize] = &[256, 512, 1024, 2048, 4096];
 
@@ -23,7 +23,7 @@ fn random_vec(len: usize) -> Vec<f32> {
 }
 
 fn bench_fill(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/fill");
     configure(&mut group);
@@ -44,7 +44,7 @@ fn bench_fill(c: &mut Criterion) {
 }
 
 fn bench_add(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/add");
     configure(&mut group);
@@ -67,7 +67,7 @@ fn bench_add(c: &mut Criterion) {
 }
 
 fn bench_sub(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/sub");
     configure(&mut group);
@@ -90,7 +90,7 @@ fn bench_sub(c: &mut Criterion) {
 }
 
 fn bench_mul(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/mul");
     configure(&mut group);
@@ -113,7 +113,7 @@ fn bench_mul(c: &mut Criterion) {
 }
 
 fn bench_div(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/div");
     configure(&mut group);
@@ -136,7 +136,7 @@ fn bench_div(c: &mut Criterion) {
 }
 
 fn bench_rem(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/rem");
     configure(&mut group);
@@ -159,7 +159,7 @@ fn bench_rem(c: &mut Criterion) {
 }
 
 fn bench_pow(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/pow");
     configure(&mut group);
@@ -182,7 +182,7 @@ fn bench_pow(c: &mut Criterion) {
 }
 
 fn bench_add_scalar(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/add_scalar");
     configure(&mut group);
@@ -205,7 +205,7 @@ fn bench_add_scalar(c: &mut Criterion) {
 }
 
 fn bench_sub_scalar(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/sub_scalar");
     configure(&mut group);
@@ -228,7 +228,7 @@ fn bench_sub_scalar(c: &mut Criterion) {
 }
 
 fn bench_mul_scalar(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/mul_scalar");
     configure(&mut group);
@@ -251,7 +251,7 @@ fn bench_mul_scalar(c: &mut Criterion) {
 }
 
 fn bench_div_scalar(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/div_scalar");
     configure(&mut group);
@@ -274,7 +274,7 @@ fn bench_div_scalar(c: &mut Criterion) {
 }
 
 fn bench_rem_scalar(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/rem_scalar");
     configure(&mut group);
@@ -297,7 +297,7 @@ fn bench_rem_scalar(c: &mut Criterion) {
 }
 
 fn bench_pow_scalar(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/pow_scalar");
     configure(&mut group);
@@ -320,7 +320,7 @@ fn bench_pow_scalar(c: &mut Criterion) {
 }
 
 fn bench_gemm(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/gemm");
     group.warm_up_time(Duration::from_millis(3000));
@@ -349,7 +349,7 @@ fn bench_gemm(c: &mut Criterion) {
 }
 
 fn bench_transpose(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/transpose");
     configure(&mut group);
@@ -371,7 +371,7 @@ fn bench_transpose(c: &mut Criterion) {
 }
 
 fn bench_sum(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/sum");
     configure(&mut group);
@@ -393,7 +393,7 @@ fn bench_sum(c: &mut Criterion) {
 }
 
 fn bench_relu(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/relu");
     configure(&mut group);
@@ -415,7 +415,7 @@ fn bench_relu(c: &mut Criterion) {
 }
 
 fn bench_sigmoid(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/sigmoid");
     configure(&mut group);
@@ -437,7 +437,7 @@ fn bench_sigmoid(c: &mut Criterion) {
 }
 
 fn bench_broadcast_rows(c: &mut Criterion) {
-    let ctx = GpuContext::default();
+    let ctx = Context::try_default().unwrap();
 
     let mut group = c.benchmark_group("kernel/broadcast_rows");
     configure(&mut group);

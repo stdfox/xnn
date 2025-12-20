@@ -10,10 +10,6 @@ documentation = "https://docs.rs/xnn"
 readme = "README.md"
 exclude = [".editorconfig", ".gitignore"]
 
-[features]
-default = []
-unstable-kernels = []
-
 [dependencies]
 bytemuck = { version = "~1.24", default-features = false }
 pollster = { version = "~0.4", default-features = false }
@@ -22,21 +18,18 @@ wgpu = { version = "~27.0", default-features = true, features = ["wgsl"] }
 
 [dev-dependencies]
 approx = { version = "~0.5", default-features = false }
-criterion = { version = "~0.7", default-features = false }
+criterion = { version = "~0.8", default-features = false }
 rand = { version = "~0.9", default-features = false, features = ["std_rng"] }
 
 [[bench]]
 name = "kernel"
 harness = false
-required-features = ["unstable-kernels"]
 
 [[example]]
 name = "linreg"
-required-features = ["unstable-kernels"]
 
 [[example]]
 name = "xor"
-required-features = ["unstable-kernels"]
 
 [lints.rust]
 unsafe_code = "forbid"

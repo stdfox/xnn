@@ -1,7 +1,7 @@
 //! GPU compute kernels.
 //!
 //! WGSL-based compute shaders for tensor operations. All kernels operate
-//! on [`Buffer`] and require a [`GpuContext`].
+//! on [`Buffer`] and require a [`Context`].
 //!
 //! # Categories
 //!
@@ -29,9 +29,7 @@ pub use linalg::{gemm, transpose};
 pub use reduction::sum;
 pub use shape::broadcast_rows;
 
-use crate::Element;
-use crate::GpuContext;
-use crate::device::Buffer;
+use crate::{Buffer, Context, Element};
 
 /// Synchronizes GPU operations.
 ///
@@ -41,19 +39,10 @@ use crate::device::Buffer;
 ///
 /// - GPU device poll fails.
 #[inline]
-pub fn sync(ctx: &GpuContext) {
+pub fn sync(ctx: &Context) {
     ctx.device()
         .poll(wgpu::PollType::wait_indefinitely())
         .expect("device poll failed");
-}
-
-/// Debug assertion that buffer belongs to the given context.
-#[inline]
-pub(crate) fn debug_assert_same_device<T: Element>(ctx: &GpuContext, buf: &Buffer<T>, name: &str) {
-    debug_assert!(
-        ctx.adapter_index() == buf.adapter_index(),
-        "buffer `{name}` belongs to a different device"
-    );
 }
 
 /// Debug assertion that two buffers have the same length.
