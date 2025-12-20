@@ -26,7 +26,7 @@ pub fn relu<T: FloatElement>(ctx: &Context, a: &Buffer<T>, b: &Buffer<T>) {
         return;
     }
 
-    let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
+    let pipeline = ctx.get_or_create_kernel_pipeline::<T, _>(create_pipeline::<T>);
 
     let bind_group_layout = pipeline.get_bind_group_layout(0);
     let bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
@@ -107,10 +107,6 @@ fn create_pipeline<T: FloatElement>(device: &wgpu::Device) -> wgpu::ComputePipel
 
 #[cfg(test)]
 mod tests {
-    use approx::assert_relative_eq;
-
-    use crate::kernel::fill;
-
     use super::*;
 
     #[test]
@@ -125,37 +121,6 @@ mod tests {
         relu(&ctx, &a, &b);
         let result = ctx.read_buffer(&b).unwrap();
         assert_eq!(result, vec![0.0, 0.0, 0.0, 1.0, 2.0, 3.0, 0.0, 0.5]);
-
-        // non-aligned
-        let a = ctx.create_buffer::<f32>(42).unwrap();
-        let b = ctx.create_buffer::<f32>(42).unwrap();
-        fill(&ctx, &a, -1.0f32);
-        relu(&ctx, &a, &b);
-        let result = ctx.read_buffer(&b).unwrap();
-        for val in &result {
-            assert_relative_eq!(*val, 0.0, epsilon = 1e-5);
-        }
-
-        // non-aligned positive
-        let a = ctx.create_buffer::<f32>(42).unwrap();
-        let b = ctx.create_buffer::<f32>(42).unwrap();
-        fill(&ctx, &a, 5.0f32);
-        relu(&ctx, &a, &b);
-        let result = ctx.read_buffer(&b).unwrap();
-        for val in &result {
-            assert_relative_eq!(*val, 5.0, epsilon = 1e-5);
-        }
-
-        // large
-        let len = 4096 * 4096;
-        let a = ctx.create_buffer::<f32>(len).unwrap();
-        let b = ctx.create_buffer::<f32>(len).unwrap();
-        fill(&ctx, &a, -3.0f32);
-        relu(&ctx, &a, &b);
-        let result = ctx.read_buffer(&b).unwrap();
-        for val in &result {
-            assert_relative_eq!(*val, 0.0, epsilon = 1e-5);
-        }
 
         // empty
         let a = ctx.create_buffer::<f32>(0).unwrap();

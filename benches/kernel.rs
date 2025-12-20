@@ -22,27 +22,6 @@ fn random_vec(len: usize) -> Vec<f32> {
     (0..len).map(|_| rng.random()).collect()
 }
 
-fn bench_fill(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
-
-    let mut group = c.benchmark_group("kernel/fill");
-    configure(&mut group);
-
-    for &size in SIZES {
-        let len = size * size;
-        let buf = ctx.create_buffer::<f32>(len).unwrap();
-
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
-            bencher.iter(|| {
-                kernel::fill(&ctx, &buf, 42.0f32);
-                kernel::sync(&ctx);
-            });
-        });
-    }
-
-    group.finish();
-}
-
 fn bench_add(c: &mut Criterion) {
     let ctx = Context::try_default().unwrap();
 
@@ -459,7 +438,6 @@ fn bench_broadcast_rows(c: &mut Criterion) {
 
 criterion::criterion_group!(
     benches,
-    bench_fill,
     bench_add,
     bench_sub,
     bench_mul,

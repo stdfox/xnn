@@ -1,4 +1,4 @@
-//! A lightweight ML framework built with Rust.
+//! A lightweight ML framework built from scratch in Rust with GPU-first architecture.
 //!
 //! This library provides GPU-accelerated tensor operations via wgpu,
 //! with a focus on simplicity, safety, and cross-platform compatibility.
@@ -6,25 +6,23 @@
 //! # Types
 //!
 //! - [`Context`] — GPU context for buffer and pipeline management.
-//! - [`Buffer`] — typed GPU buffer for element data.
-//! - [`Element`] — trait for GPU-compatible types (`f32`, `i32`, `u32`).
-//! - [`FloatElement`] — marker trait for floating-point types (`f32`).
-//! - [`Error`] — error type for GPU operations.
-//!
-//! # Feature flags
-//!
-//! - `unstable-kernels` — exposes the `kernel` module with GPU compute kernels.
+//! - [`Buffer`] — Typed GPU buffer for element data.
+//! - [`Element`] — Trait for GPU-compatible types (`f32`, `i32`, `u32`).
+//! - [`FloatElement`] — Marker trait for floating-point types (`f32`).
+//! - [`Error`] — Error type for GPU operations.
 
 #![warn(missing_docs)]
 
 extern crate alloc;
 
+pub mod error;
 pub mod kernel;
 
 mod device;
 mod element;
-mod error;
+mod tensor;
 
 pub use device::{Buffer, Context};
 pub use element::{Element, FloatElement};
 pub use error::Error;
+pub use tensor::Tensor;

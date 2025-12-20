@@ -64,7 +64,7 @@ pub fn gemm<T: FloatElement>(
     let k32 = u32::try_from(k).expect("k exceeds u32::MAX");
     let n32 = u32::try_from(n).expect("n exceeds u32::MAX");
 
-    let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
+    let pipeline = ctx.get_or_create_kernel_pipeline::<T, _>(create_pipeline::<T>);
 
     let m_tiles = m32.div_ceil(TILE_SIZE);
     let n_tiles = n32.div_ceil(TILE_SIZE);

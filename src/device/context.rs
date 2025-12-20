@@ -9,7 +9,7 @@ use wgpu::util::DeviceExt as _;
 
 use crate::{Buffer, Element, Error};
 
-/// Default max_storage_buffer_binding_size (128 MiB).
+/// Default `max_storage_buffer_binding_size` (128 MiB).
 const MAX_STORAGE_BUFFER_SIZE: u64 = 128 * 1024 * 1024;
 
 /// Cache for compute pipelines keyed by type.
@@ -153,6 +153,17 @@ impl Context {
         Ok(Buffer::new(buffer, len as usize))
     }
 
+    /// Creates a uniform buffer from a single value.
+    pub(crate) fn create_uniform_buffer<T: Element>(&self, value: T) -> wgpu::Buffer {
+        self.inner
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::bytes_of(&value),
+                usage: wgpu::BufferUsages::UNIFORM,
+            })
+    }
+
     /// Copies buffer contents from GPU to CPU memory.
     ///
     /// Blocks until the transfer completes.
@@ -204,6 +215,61 @@ impl Context {
         Ok(result)
     }
 
+    /// Gets or creates a cached compute pipeline.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Device`] if cache lock is poisoned.
+    pub(crate) fn get_or_create_pipeline(
+        &self,
+        type_id: TypeId,
+        shader: impl FnOnce() -> String,
+        label: &'static str,
+    ) -> Result<Arc<wgpu::ComputePipeline>, Error> {
+        {
+            let cache = self
+                .inner
+                .cache
+                .read()
+                .map_err(|e| Error::Device(format!("cache lock poisoned: {e}")))?;
+            if let Some(pipeline) = cache.get(&type_id) {
+                return Ok(Arc::clone(pipeline));
+            }
+        }
+
+        let mut cache = self
+            .inner
+            .cache
+            .write()
+            .map_err(|e| Error::Device(format!("cache lock poisoned: {e}")))?;
+        if let Some(pipeline) = cache.get(&type_id) {
+            return Ok(Arc::clone(pipeline));
+        }
+
+        let shader_module = self
+            .inner
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some(label),
+                source: wgpu::ShaderSource::Wgsl(shader().into()),
+            });
+
+        let pipeline = Arc::new(self.inner.device.create_compute_pipeline(
+            &wgpu::ComputePipelineDescriptor {
+                label: Some(label),
+                layout: None,
+                module: &shader_module,
+                entry_point: Some("main"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                cache: None,
+            },
+        ));
+
+        cache.insert(type_id, Arc::clone(&pipeline));
+
+        Ok(pipeline)
+    }
+
     /// Returns the wgpu device.
     pub(crate) fn device(&self) -> &wgpu::Device {
         &self.inner.device
@@ -215,7 +281,7 @@ impl Context {
     }
 
     /// Gets or creates a cached compute pipeline for type `T` and factory `F`.
-    pub(crate) fn get_or_create_pipeline<T: 'static, F>(
+    pub(crate) fn get_or_create_kernel_pipeline<T: 'static, F>(
         &self,
         create_fn: F,
     ) -> Arc<wgpu::ComputePipeline>
@@ -342,9 +408,9 @@ impl Clone for Context {
 //     }
 
 //     #[test]
-//     fn test_get_or_create_pipeline() {
+//     fn test_get_or_create_kernel_pipeline() {
 //         let ctx = Context::try_default().unwrap();
-//         let pipeline = ctx.get_or_create_pipeline::<f32, _>(|device| {
+//         let pipeline = ctx.get_or_create_kernel_pipeline::<f32, _>(|device| {
 //             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
 //                 label: None,
 //                 source: wgpu::ShaderSource::Wgsl("@compute @workgroup_size(1) fn main() {}".into()),

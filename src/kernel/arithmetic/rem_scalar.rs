@@ -30,7 +30,7 @@ pub fn rem_scalar<T: Element>(ctx: &Context, a: &Buffer<T>, b: &Buffer<T>, c: &B
         return;
     }
 
-    let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
+    let pipeline = ctx.get_or_create_kernel_pipeline::<T, _>(create_pipeline::<T>);
 
     let bind_group_layout = pipeline.get_bind_group_layout(0);
     let bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
@@ -120,8 +120,6 @@ mod tests {
 
     use approx::assert_relative_eq;
 
-    use crate::kernel::fill;
-
     use super::*;
 
     #[test]
@@ -154,26 +152,6 @@ mod tests {
         let c = ctx.create_buffer::<u32>(4).unwrap();
         rem_scalar(&ctx, &a, &b, &c);
         assert_eq!(ctx.read_buffer(&c).unwrap(), vec![7, 10, 15, 2]);
-
-        // non-aligned
-        let a = ctx.create_buffer::<i32>(42).unwrap();
-        let b = ctx.create_buffer_from_slice(&[42i32]).unwrap();
-        let c = ctx.create_buffer::<i32>(42).unwrap();
-        fill(&ctx, &a, 100i32);
-        rem_scalar(&ctx, &a, &b, &c);
-        assert_eq!(ctx.read_buffer(&c).unwrap(), vec![16; 42]);
-
-        // large
-        let len = 4096 * 4096;
-        let a = ctx.create_buffer::<i32>(len).unwrap();
-        let b = ctx.create_buffer_from_slice(&[42i32]).unwrap();
-        let c = ctx.create_buffer::<i32>(len).unwrap();
-        fill(&ctx, &a, 100i32);
-        rem_scalar(&ctx, &a, &b, &c);
-        let result = ctx.read_buffer(&c).unwrap();
-        for val in &result {
-            assert_eq!(*val, 16);
-        }
 
         // empty
         let a = ctx.create_buffer::<f32>(0).unwrap();

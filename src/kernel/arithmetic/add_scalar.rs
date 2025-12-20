@@ -30,7 +30,7 @@ pub fn add_scalar<T: Element>(ctx: &Context, a: &Buffer<T>, b: &Buffer<T>, c: &B
         return;
     }
 
-    let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
+    let pipeline = ctx.get_or_create_kernel_pipeline::<T, _>(create_pipeline::<T>);
 
     let bind_group_layout = pipeline.get_bind_group_layout(0);
     let bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
@@ -116,12 +116,6 @@ fn create_pipeline<T: Element>(device: &wgpu::Device) -> wgpu::ComputePipeline {
 
 #[cfg(test)]
 mod tests {
-    use std::f32::consts::PI;
-
-    use approx::assert_relative_eq;
-
-    use crate::kernel::fill;
-
     use super::*;
 
     #[test]
@@ -150,29 +144,6 @@ mod tests {
         let c = ctx.create_buffer::<u32>(4).unwrap();
         add_scalar(&ctx, &a, &b, &c);
         assert_eq!(ctx.read_buffer(&c).unwrap(), vec![43, 44, 45, 46]);
-
-        // non-aligned
-        let a = ctx.create_buffer::<f32>(42).unwrap();
-        let b = ctx.create_buffer_from_slice(&[PI]).unwrap();
-        let c = ctx.create_buffer::<f32>(42).unwrap();
-        fill(&ctx, &a, 1.0f32);
-        add_scalar(&ctx, &a, &b, &c);
-        let result = ctx.read_buffer(&c).unwrap();
-        for val in &result {
-            assert_relative_eq!(*val, 1.0 + PI, epsilon = 1e-5);
-        }
-
-        // large
-        let len = 4096 * 4096;
-        let a = ctx.create_buffer::<f32>(len).unwrap();
-        let b = ctx.create_buffer_from_slice(&[PI]).unwrap();
-        let c = ctx.create_buffer::<f32>(len).unwrap();
-        fill(&ctx, &a, 1.0f32);
-        add_scalar(&ctx, &a, &b, &c);
-        let result = ctx.read_buffer(&c).unwrap();
-        for val in &result {
-            assert_relative_eq!(*val, 1.0 + PI, epsilon = 1e-5);
-        }
 
         // empty
         let a = ctx.create_buffer::<f32>(0).unwrap();

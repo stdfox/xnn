@@ -49,7 +49,7 @@ pub fn sum<T: Element>(ctx: &Context, input: &Buffer<T>, output: &Buffer<T>) {
         );
     }
 
-    let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
+    let pipeline = ctx.get_or_create_kernel_pipeline::<T, _>(create_pipeline::<T>);
 
     // Batched encoder for all passes
     let mut encoder = ctx

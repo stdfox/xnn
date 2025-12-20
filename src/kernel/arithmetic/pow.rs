@@ -30,7 +30,7 @@ pub fn pow<T: FloatElement>(ctx: &Context, a: &Buffer<T>, b: &Buffer<T>, c: &Buf
         return;
     }
 
-    let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
+    let pipeline = ctx.get_or_create_kernel_pipeline::<T, _>(create_pipeline::<T>);
 
     let bind_group_layout = pipeline.get_bind_group_layout(0);
     let bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
@@ -118,8 +118,6 @@ fn create_pipeline<T: FloatElement>(device: &wgpu::Device) -> wgpu::ComputePipel
 mod tests {
     use approx::assert_relative_eq;
 
-    use crate::kernel::fill;
-
     use super::*;
 
     #[test]
@@ -140,31 +138,6 @@ mod tests {
         assert_relative_eq!(result[1], 9.0, epsilon = 1e-5);
         assert_relative_eq!(result[2], 2.0, epsilon = 1e-5);
         assert_relative_eq!(result[3], 5.0, epsilon = 1e-5);
-
-        // non-aligned
-        let a = ctx.create_buffer::<f32>(42).unwrap();
-        let b = ctx.create_buffer::<f32>(42).unwrap();
-        let c = ctx.create_buffer::<f32>(42).unwrap();
-        fill(&ctx, &a, 2.0f32);
-        fill(&ctx, &b, 3.0f32);
-        pow(&ctx, &a, &b, &c);
-        let result = ctx.read_buffer(&c).unwrap();
-        for val in &result {
-            assert_relative_eq!(*val, 8.0, epsilon = 1e-5);
-        }
-
-        // large
-        let len = 4096 * 4096;
-        let a = ctx.create_buffer::<f32>(len).unwrap();
-        let b = ctx.create_buffer::<f32>(len).unwrap();
-        let c = ctx.create_buffer::<f32>(len).unwrap();
-        fill(&ctx, &a, 2.0f32);
-        fill(&ctx, &b, 4.0f32);
-        pow(&ctx, &a, &b, &c);
-        let result = ctx.read_buffer(&c).unwrap();
-        for val in &result {
-            assert_relative_eq!(*val, 16.0, epsilon = 1e-5);
-        }
 
         // empty
         let a = ctx.create_buffer::<f32>(0).unwrap();

@@ -1,15 +1,14 @@
 //! Traits for GPU-compatible element types.
 //!
-//! [`Element`] defines types that can be stored in GPU buffers and used
-//! in compute shaders. Implemented for `f32`, `i32`, and `u32`.
-//!
-//! [`FloatElement`] is a marker trait for floating-point types only.
-//! Used by operations that require floats (e.g., `pow`, `gemm`).
+//! - [`Element`] — base trait for GPU buffer types (`f32`, `i32`, `u32`).
+//! - [`FloatElement`] — marker for floating-point types (`f32`).
+
+use core::fmt::Display;
 
 use bytemuck::{Pod, Zeroable};
 
 /// Trait for GPU-compatible element types.
-pub trait Element: Copy + Clone + Pod + Zeroable + 'static {
+pub trait Element: Display + Copy + Clone + Pod + Zeroable + 'static {
     /// Returns the WGSL type name.
     fn wgsl_type() -> &'static str;
 }

@@ -26,7 +26,7 @@ pub fn sigmoid<T: FloatElement>(ctx: &Context, a: &Buffer<T>, b: &Buffer<T>) {
         return;
     }
 
-    let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
+    let pipeline = ctx.get_or_create_kernel_pipeline::<T, _>(create_pipeline::<T>);
 
     let bind_group_layout = pipeline.get_bind_group_layout(0);
     let bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
@@ -109,8 +109,6 @@ fn create_pipeline<T: FloatElement>(device: &wgpu::Device) -> wgpu::ComputePipel
 mod tests {
     use approx::assert_relative_eq;
 
-    use crate::kernel::fill;
-
     use super::*;
 
     #[test]
@@ -141,27 +139,6 @@ mod tests {
         assert_relative_eq!(result[6], 1.0 / (1.0 + 2.0f32.exp()), epsilon = 1e-5);
         // sigmoid(0.5)
         assert_relative_eq!(result[7], 1.0 / (1.0 + (-0.5f32).exp()), epsilon = 1e-5);
-
-        // non-aligned - zero input
-        let a = ctx.create_buffer::<f32>(42).unwrap();
-        let b = ctx.create_buffer::<f32>(42).unwrap();
-        fill(&ctx, &a, 0.0f32);
-        sigmoid(&ctx, &a, &b);
-        let result = ctx.read_buffer(&b).unwrap();
-        for val in &result {
-            assert_relative_eq!(*val, 0.5, epsilon = 1e-5);
-        }
-
-        // large
-        let len = 4096 * 4096;
-        let a = ctx.create_buffer::<f32>(len).unwrap();
-        let b = ctx.create_buffer::<f32>(len).unwrap();
-        fill(&ctx, &a, 0.0f32);
-        sigmoid(&ctx, &a, &b);
-        let result = ctx.read_buffer(&b).unwrap();
-        for val in &result {
-            assert_relative_eq!(*val, 0.5, epsilon = 1e-5);
-        }
 
         // empty
         let a = ctx.create_buffer::<f32>(0).unwrap();

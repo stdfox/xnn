@@ -42,7 +42,7 @@ pub fn transpose<T: Element>(
     let rows32 = u32::try_from(rows).expect("rows exceeds u32::MAX");
     let cols32 = u32::try_from(cols).expect("cols exceeds u32::MAX");
 
-    let pipeline = ctx.get_or_create_pipeline::<T, _>(create_pipeline::<T>);
+    let pipeline = ctx.get_or_create_kernel_pipeline::<T, _>(create_pipeline::<T>);
 
     let dims = [rows32, cols32];
     let dims_buffer = ctx

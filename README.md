@@ -14,26 +14,6 @@ A lightweight ML framework built from scratch in Rust with GPU-first architectur
 - Automatic compute pipeline caching
 - No unsafe code
 
-## Examples
-
-Examples require the `unstable-kernels` feature flag.
-
-### Linear regression
-
-Trains a simple linear model to fit `y = 2x + 1`.
-
-```sh
-cargo run --release --example linreg
-```
-
-### XOR
-
-Trains a 2-layer neural network to solve the XOR problem.
-
-```sh
-cargo run --release --example xor
-```
-
 ## License
 
 MIT — see [LICENSE](LICENSE) for details.
