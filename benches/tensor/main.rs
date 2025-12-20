@@ -90,13 +90,16 @@ bench_unary_op!(bench_asin, asin);
 bench_unary_op!(bench_asinh, asinh);
 bench_unary_op!(bench_atan, atan);
 bench_unary_op!(bench_atanh, atanh);
+bench_unary_op!(bench_ceil, ceil);
 bench_unary_op!(bench_copy, copy);
 bench_unary_op!(bench_cos, cos);
 bench_unary_op!(bench_cosh, cosh);
 bench_unary_op!(bench_exp, exp);
+bench_unary_op!(bench_floor, floor);
 bench_unary_op!(bench_log, log);
 bench_unary_op!(bench_neg, neg);
 bench_unary_op!(bench_rcp, rcp);
+bench_unary_op!(bench_round, round);
 bench_unary_op!(bench_sign, sign);
 bench_unary_op!(bench_sin, sin);
 bench_unary_op!(bench_sinh, sinh);
@@ -113,13 +116,16 @@ criterion::criterion_group!(
     bench_asinh,
     bench_atan,
     bench_atanh,
+    bench_ceil,
     bench_copy,
     bench_cos,
     bench_cosh,
     bench_exp,
+    bench_floor,
     bench_log,
     bench_neg,
     bench_rcp,
+    bench_round,
     bench_sign,
     bench_sin,
     bench_sinh,

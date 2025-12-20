@@ -226,6 +226,15 @@ impl<T: FloatElement> Tensor<T> {
         self.unary_float_op(ops::atanh)
     }
 
+    /// Computes ceiling element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn ceil(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::ceil)
+    }
+
     /// Computes cosine element-wise.
     ///
     /// # Errors
@@ -253,6 +262,15 @@ impl<T: FloatElement> Tensor<T> {
         self.unary_float_op(ops::exp)
     }
 
+    /// Computes floor element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn floor(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::floor)
+    }
+
     /// Computes natural logarithm element-wise.
     ///
     /// # Errors
@@ -269,6 +287,15 @@ impl<T: FloatElement> Tensor<T> {
     /// - [`Error::Device`] if operation fails.
     pub fn rcp(&self) -> Result<Self, Error> {
         self.unary_float_op(ops::rcp)
+    }
+
+    /// Rounds to nearest integer element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn round(&self) -> Result<Self, Error> {
+        self.unary_float_op(ops::round)
     }
 
     /// Computes sine element-wise.
