@@ -176,7 +176,7 @@ impl Context {
             return Ok(Vec::new());
         }
 
-        let size = u64::from(buffer.len() as u64) * core::mem::size_of::<T>() as u64;
+        let size = buffer.len() as u64 * core::mem::size_of::<T>() as u64;
 
         let staging = self.inner.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,

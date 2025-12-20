@@ -79,5 +79,96 @@ pub fn bench_copy(c: &mut Criterion) {
     group.finish();
 }
 
-criterion::criterion_group!(benches, bench_constant, bench_copy);
+pub fn bench_abs(c: &mut Criterion) {
+    let ctx = Context::try_default().unwrap();
+    let mut group = configure(c, "tensor/abs");
+
+    for &(name, dims) in SIZES {
+        let len: usize = dims.iter().product();
+        let tensor = Tensor::<f32>::constant(&ctx, dims, &random_vec(len)).unwrap();
+
+        group.throughput(Throughput::ElementsAndBytes {
+            elements: len as u64,
+            bytes: (len * size_of::<f32>()) as u64,
+        });
+
+        group.bench_with_input(
+            BenchmarkId::from_parameter(name),
+            &tensor,
+            |bencher, tensor| {
+                bencher.iter(|| {
+                    let _ = tensor.abs().unwrap();
+                    ctx.poll().unwrap();
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+pub fn bench_sign(c: &mut Criterion) {
+    let ctx = Context::try_default().unwrap();
+    let mut group = configure(c, "tensor/sign");
+
+    for &(name, dims) in SIZES {
+        let len: usize = dims.iter().product();
+        let tensor = Tensor::<f32>::constant(&ctx, dims, &random_vec(len)).unwrap();
+
+        group.throughput(Throughput::ElementsAndBytes {
+            elements: len as u64,
+            bytes: (len * size_of::<f32>()) as u64,
+        });
+
+        group.bench_with_input(
+            BenchmarkId::from_parameter(name),
+            &tensor,
+            |bencher, tensor| {
+                bencher.iter(|| {
+                    let _ = tensor.sign().unwrap();
+                    ctx.poll().unwrap();
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+pub fn bench_neg(c: &mut Criterion) {
+    let ctx = Context::try_default().unwrap();
+    let mut group = configure(c, "tensor/neg");
+
+    for &(name, dims) in SIZES {
+        let len: usize = dims.iter().product();
+        let tensor = Tensor::<f32>::constant(&ctx, dims, &random_vec(len)).unwrap();
+
+        group.throughput(Throughput::ElementsAndBytes {
+            elements: len as u64,
+            bytes: (len * size_of::<f32>()) as u64,
+        });
+
+        group.bench_with_input(
+            BenchmarkId::from_parameter(name),
+            &tensor,
+            |bencher, tensor| {
+                bencher.iter(|| {
+                    let _ = tensor.neg().unwrap();
+                    ctx.poll().unwrap();
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
+criterion::criterion_group!(
+    benches,
+    bench_constant,
+    bench_copy,
+    bench_abs,
+    bench_sign,
+    bench_neg,
+);
 criterion::criterion_main!(benches);

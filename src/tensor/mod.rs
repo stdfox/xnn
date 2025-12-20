@@ -3,8 +3,10 @@
 mod layout;
 mod ops;
 
+use core::any::TypeId;
+
 use crate::error::{Error, TensorError};
-use crate::{Buffer, Context, Element};
+use crate::{Buffer, Context, Element, NumericElement, SignedElement};
 use layout::Layout;
 
 /// N-dimensional tensor with GPU-backed storage.
@@ -108,5 +110,63 @@ impl<T: Element> Tensor<T> {
     /// - [`Error::Device`] if operation fails.
     pub fn to_vec(&self) -> Result<Vec<T>, Error> {
         self.ctx.read_buffer(&self.buffer)
+    }
+}
+
+impl<T: NumericElement> Tensor<T> {
+    /// Computes absolute value element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn abs(&self) -> Result<Self, Error> {
+        if TypeId::of::<T>() == TypeId::of::<u32>() {
+            return self.copy();
+        }
+
+        let buffer = self.ctx.create_buffer(self.buffer.len())?;
+        ops::abs(&self.ctx, &self.buffer, &buffer)?;
+
+        Ok(Self {
+            buffer,
+            layout: self.layout.clone(),
+            ctx: self.ctx.clone(),
+        })
+    }
+
+    /// Computes sign element-wise.
+    ///
+    /// Returns -1, 0, or 1 for signed types; 0 or 1 for unsigned types.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn sign(&self) -> Result<Self, Error> {
+        let buffer = self.ctx.create_buffer(self.buffer.len())?;
+        ops::sign(&self.ctx, &self.buffer, &buffer)?;
+
+        Ok(Self {
+            buffer,
+            layout: self.layout.clone(),
+            ctx: self.ctx.clone(),
+        })
+    }
+}
+
+impl<T: SignedElement> Tensor<T> {
+    /// Computes negation element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn neg(&self) -> Result<Self, Error> {
+        let buffer = self.ctx.create_buffer(self.buffer.len())?;
+        ops::neg(&self.ctx, &self.buffer, &buffer)?;
+
+        Ok(Self {
+            buffer,
+            layout: self.layout.clone(),
+            ctx: self.ctx.clone(),
+        })
     }
 }
