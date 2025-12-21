@@ -105,11 +105,11 @@ fn test_or_scalar_to_scalar() {
     let c = a.or(&b).unwrap();
     assert_eq!(c.dimensions(), &[] as &[usize]);
     let out = c.to_vec().unwrap();
-    assert_eq!(out[0], false);
+    assert!(!out[0]);
 
     let a = Tensor::<bool>::constant(&ctx, &[], &[true]).unwrap();
     let b = Tensor::<bool>::constant(&ctx, &[], &[false]).unwrap();
     let c = a.or(&b).unwrap();
     let out = c.to_vec().unwrap();
-    assert_eq!(out[0], true);
+    assert!(out[0]);
 }

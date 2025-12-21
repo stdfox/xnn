@@ -95,16 +95,6 @@ fn test_sign_i32_zero() {
 }
 
 #[test]
-fn test_sign_u32() {
-    let ctx = Context::try_default().unwrap();
-    let data = vec![0u32, 1, 2, 100];
-    let t = Tensor::<u32>::from_slice(&ctx, &data).unwrap();
-    let result = t.sign().unwrap();
-    assert_eq!(result.dimensions(), t.dimensions());
-    assert_eq!(result.to_vec().unwrap(), vec![0, 1, 1, 1]);
-}
-
-#[test]
 fn test_sign_2d() {
     let ctx = Context::try_default().unwrap();
     let data = vec![-1.0, 2.0, -3.0, 4.0, -5.0, 6.0];

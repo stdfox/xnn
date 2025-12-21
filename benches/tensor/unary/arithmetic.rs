@@ -9,7 +9,6 @@ bench_unary_op!(bench_asin, asin);
 bench_unary_op!(bench_asinh, asinh);
 bench_unary_op!(bench_atan, atan);
 bench_unary_op!(bench_atanh, atanh);
-bench_unary_op!(bench_copy, copy);
 bench_unary_op!(bench_cos, cos);
 bench_unary_op!(bench_cosh, cosh);
 bench_unary_op!(bench_exp, exp);

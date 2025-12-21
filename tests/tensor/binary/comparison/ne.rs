@@ -116,5 +116,5 @@ fn test_ne_scalar_to_scalar() {
     let c = a.ne(&b).unwrap();
     assert_eq!(c.dimensions(), &[] as &[usize]);
     let out = c.to_vec().unwrap();
-    assert_eq!(out[0], false);
+    assert!(!out[0]);
 }

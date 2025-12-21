@@ -7,7 +7,6 @@ mod asin;
 mod asinh;
 mod atan;
 mod atanh;
-mod copy;
 mod cos;
 mod cosh;
 mod exp;

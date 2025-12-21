@@ -32,6 +32,7 @@ pub(crate) fn copy<T: Element>(
             label: Some("copy"),
         });
     encoder.copy_buffer_to_buffer(src.inner(), 0, dst.inner(), 0, size);
+
     ctx.queue().submit(Some(encoder.finish()));
 
     Ok(())

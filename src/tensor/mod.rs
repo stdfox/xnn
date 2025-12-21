@@ -3,8 +3,6 @@
 mod layout;
 mod ops;
 
-use core::any::TypeId;
-
 use crate::element::{FloatElement, IntegerElement, LogicalElement, NumericElement, SignedElement};
 use crate::error::{Error, TensorError};
 use crate::{Buffer, Context, Element};
@@ -136,19 +134,19 @@ impl<T: Element> Tensor<T> {
 
     /// Applies a binary operation with broadcasting and returns a new tensor.
     #[allow(clippy::type_complexity)]
-    fn binary_op(
+    fn binary_op<U: Element>(
         &self,
         other: &Self,
         op: fn(
             &Context,
             &Buffer<T>,
             &Buffer<T>,
-            &Buffer<T>,
+            &Buffer<U>,
             &[usize],
             &[usize],
             &[usize],
         ) -> Result<(), Error>,
-    ) -> Result<Self, Error> {
+    ) -> Result<Tensor<U>, Error> {
         let (layout, a_strides, b_strides) = self.broadcast_with(other)?;
         let buffer = self.ctx.create_buffer(layout.size())?;
 
@@ -162,9 +160,25 @@ impl<T: Element> Tensor<T> {
             &b_strides,
         )?;
 
-        Ok(Self {
+        Ok(Tensor {
             buffer,
             layout,
+            ctx: self.ctx.clone(),
+        })
+    }
+
+    /// Applies a unary operation and returns a new tensor.
+    #[allow(clippy::type_complexity)]
+    fn unary_op(
+        &self,
+        op: fn(&Context, &Buffer<T>, &Buffer<T>) -> Result<(), Error>,
+    ) -> Result<Self, Error> {
+        let buffer = self.ctx.create_buffer(self.buffer.len())?;
+        op(&self.ctx, &self.buffer, &buffer)?;
+
+        Ok(Self {
+            buffer,
+            layout: self.layout.clone(),
             ctx: self.ctx.clone(),
         })
     }
@@ -218,7 +232,7 @@ impl<T: NumericElement> Tensor<T> {
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
     /// - [`Error::Device`] if GPU operation fails.
     pub fn lt(&self, other: &Self) -> Result<Tensor<bool>, Error> {
-        self.comparison_op(other, ops::lt)
+        self.binary_op(other, ops::lt)
     }
 
     /// Element-wise greater-than comparison with broadcasting.
@@ -228,7 +242,7 @@ impl<T: NumericElement> Tensor<T> {
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
     /// - [`Error::Device`] if GPU operation fails.
     pub fn gt(&self, other: &Self) -> Result<Tensor<bool>, Error> {
-        self.comparison_op(other, ops::gt)
+        self.binary_op(other, ops::gt)
     }
 
     /// Element-wise less-than-or-equal comparison with broadcasting.
@@ -238,7 +252,7 @@ impl<T: NumericElement> Tensor<T> {
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
     /// - [`Error::Device`] if GPU operation fails.
     pub fn le(&self, other: &Self) -> Result<Tensor<bool>, Error> {
-        self.comparison_op(other, ops::le)
+        self.binary_op(other, ops::le)
     }
 
     /// Element-wise greater-than-or-equal comparison with broadcasting.
@@ -248,7 +262,7 @@ impl<T: NumericElement> Tensor<T> {
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
     /// - [`Error::Device`] if GPU operation fails.
     pub fn ge(&self, other: &Self) -> Result<Tensor<bool>, Error> {
-        self.comparison_op(other, ops::ge)
+        self.binary_op(other, ops::ge)
     }
 
     /// Element-wise equality comparison with broadcasting.
@@ -258,7 +272,7 @@ impl<T: NumericElement> Tensor<T> {
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
     /// - [`Error::Device`] if GPU operation fails.
     pub fn eq(&self, other: &Self) -> Result<Tensor<bool>, Error> {
-        self.comparison_op(other, ops::eq)
+        self.binary_op(other, ops::eq)
     }
 
     /// Element-wise inequality comparison with broadcasting.
@@ -268,97 +282,38 @@ impl<T: NumericElement> Tensor<T> {
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
     /// - [`Error::Device`] if GPU operation fails.
     pub fn ne(&self, other: &Self) -> Result<Tensor<bool>, Error> {
-        self.comparison_op(other, ops::ne)
+        self.binary_op(other, ops::ne)
     }
+}
 
+impl<T: SignedElement> Tensor<T> {
     /// Computes absolute value element-wise.
     ///
     /// # Errors
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn abs(&self) -> Result<Self, Error> {
-        if TypeId::of::<T>() == TypeId::of::<u32>() {
-            return self.copy();
-        }
-
-        let buffer = self.ctx.create_buffer(self.buffer.len())?;
-        ops::abs(&self.ctx, &self.buffer, &buffer)?;
-
-        Ok(Self {
-            buffer,
-            layout: self.layout.clone(),
-            ctx: self.ctx.clone(),
-        })
+        self.unary_op(ops::abs)
     }
 
-    /// Computes sign element-wise.
-    ///
-    /// Returns -1, 0, or 1 for signed types; 0 or 1 for unsigned types.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn sign(&self) -> Result<Self, Error> {
-        let buffer = self.ctx.create_buffer(self.buffer.len())?;
-        ops::sign(&self.ctx, &self.buffer, &buffer)?;
-
-        Ok(Self {
-            buffer,
-            layout: self.layout.clone(),
-            ctx: self.ctx.clone(),
-        })
-    }
-
-    /// Helper for comparison operations.
-    fn comparison_op(
-        &self,
-        other: &Self,
-        op: fn(
-            &Context,
-            &Buffer<T>,
-            &Buffer<T>,
-            &Buffer<bool>,
-            &[usize],
-            &[usize],
-            &[usize],
-        ) -> Result<(), Error>,
-    ) -> Result<Tensor<bool>, Error> {
-        let (layout, a_strides, b_strides) = self.broadcast_with(other)?;
-        let buffer = self.ctx.create_buffer(layout.size())?;
-
-        op(
-            &self.ctx,
-            &self.buffer,
-            &other.buffer,
-            &buffer,
-            layout.dimensions(),
-            &a_strides,
-            &b_strides,
-        )?;
-
-        Ok(Tensor {
-            buffer,
-            layout,
-            ctx: self.ctx.clone(),
-        })
-    }
-}
-
-impl<T: SignedElement> Tensor<T> {
     /// Computes negation element-wise.
     ///
     /// # Errors
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn neg(&self) -> Result<Self, Error> {
-        let buffer = self.ctx.create_buffer(self.buffer.len())?;
-        ops::neg(&self.ctx, &self.buffer, &buffer)?;
+        self.unary_op(ops::neg)
+    }
 
-        Ok(Self {
-            buffer,
-            layout: self.layout.clone(),
-            ctx: self.ctx.clone(),
-        })
+    /// Computes sign element-wise.
+    ///
+    /// Returns -1, 0, or 1.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn sign(&self) -> Result<Self, Error> {
+        self.unary_op(ops::sign)
     }
 }
 
@@ -391,7 +346,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn acos(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::acos)
+        self.unary_op(ops::acos)
     }
 
     /// Computes inverse hyperbolic cosine element-wise.
@@ -400,7 +355,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn acosh(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::acosh)
+        self.unary_op(ops::acosh)
     }
 
     /// Computes arc sine element-wise.
@@ -409,7 +364,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn asin(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::asin)
+        self.unary_op(ops::asin)
     }
 
     /// Computes inverse hyperbolic sine element-wise.
@@ -418,7 +373,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn asinh(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::asinh)
+        self.unary_op(ops::asinh)
     }
 
     /// Computes arc tangent element-wise.
@@ -427,7 +382,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn atan(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::atan)
+        self.unary_op(ops::atan)
     }
 
     /// Computes inverse hyperbolic tangent element-wise.
@@ -436,7 +391,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn atanh(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::atanh)
+        self.unary_op(ops::atanh)
     }
 
     /// Computes ceiling element-wise.
@@ -445,7 +400,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn ceil(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::ceil)
+        self.unary_op(ops::ceil)
     }
 
     /// Computes cosine element-wise.
@@ -454,7 +409,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn cos(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::cos)
+        self.unary_op(ops::cos)
     }
 
     /// Computes hyperbolic cosine element-wise.
@@ -463,7 +418,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn cosh(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::cosh)
+        self.unary_op(ops::cosh)
     }
 
     /// Computes exponential (e^x) element-wise.
@@ -472,7 +427,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn exp(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::exp)
+        self.unary_op(ops::exp)
     }
 
     /// Computes floor element-wise.
@@ -481,7 +436,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn floor(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::floor)
+        self.unary_op(ops::floor)
     }
 
     /// Computes natural logarithm element-wise.
@@ -490,7 +445,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn log(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::log)
+        self.unary_op(ops::log)
     }
 
     /// Computes reciprocal (1/x) element-wise.
@@ -499,7 +454,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn rcp(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::rcp)
+        self.unary_op(ops::rcp)
     }
 
     /// Rounds to nearest integer element-wise.
@@ -508,7 +463,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn round(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::round)
+        self.unary_op(ops::round)
     }
 
     /// Computes sine element-wise.
@@ -517,7 +472,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn sin(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::sin)
+        self.unary_op(ops::sin)
     }
 
     /// Computes hyperbolic sine element-wise.
@@ -526,7 +481,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn sinh(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::sinh)
+        self.unary_op(ops::sinh)
     }
 
     /// Computes tangent element-wise.
@@ -535,7 +490,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn tan(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::tan)
+        self.unary_op(ops::tan)
     }
 
     /// Computes hyperbolic tangent element-wise.
@@ -544,23 +499,7 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn tanh(&self) -> Result<Self, Error> {
-        self.unary_float_op(ops::tanh)
-    }
-
-    /// Applies a unary float operation and returns a new tensor.
-    #[allow(clippy::type_complexity)]
-    fn unary_float_op(
-        &self,
-        op: fn(&Context, &Buffer<T>, &Buffer<T>) -> Result<(), Error>,
-    ) -> Result<Self, Error> {
-        let buffer = self.ctx.create_buffer(self.buffer.len())?;
-        op(&self.ctx, &self.buffer, &buffer)?;
-
-        Ok(Self {
-            buffer,
-            layout: self.layout.clone(),
-            ctx: self.ctx.clone(),
-        })
+        self.unary_op(ops::tanh)
     }
 }
 
@@ -591,13 +530,6 @@ impl<T: LogicalElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn not(&self) -> Result<Self, Error> {
-        let buffer = self.ctx.create_buffer(self.buffer.len())?;
-        ops::not(&self.ctx, &self.buffer, &buffer)?;
-
-        Ok(Self {
-            buffer,
-            layout: self.layout.clone(),
-            ctx: self.ctx.clone(),
-        })
+        self.unary_op(ops::not)
     }
 }
