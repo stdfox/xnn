@@ -1,5 +1,7 @@
 //! Tensor benchmarks.
 
+mod unary;
+
 use std::time::Duration;
 
 use criterion::measurement::WallTime;
@@ -9,7 +11,7 @@ use rand::{Rng as _, SeedableRng as _};
 use xnn::{Context, Tensor};
 
 const SIZES: &[(&str, &[usize])] = &[
-    ("1048576", &[1048576]),
+    ("1048576", &[1_048_576]),
     ("2048x2048", &[2048, 2048]),
     ("256x256x128", &[256, 256, 128]),
     ("128x64x64x32", &[128, 64, 64, 32]),
@@ -51,85 +53,34 @@ fn bench_constant(c: &mut Criterion) {
     group.finish();
 }
 
-macro_rules! bench_unary_op {
-    ($name:ident, $op:ident) => {
-        fn $name(c: &mut Criterion) {
-            let ctx = Context::try_default().unwrap();
-            let mut group = configure(c, concat!("tensor/", stringify!($op)));
-
-            for &(name, dims) in SIZES {
-                let len: usize = dims.iter().product();
-                let tensor = Tensor::<f32>::constant(&ctx, dims, &random_vec(len)).unwrap();
-
-                group.throughput(Throughput::ElementsAndBytes {
-                    elements: len as u64,
-                    bytes: (len * size_of::<f32>()) as u64,
-                });
-
-                group.bench_with_input(
-                    BenchmarkId::from_parameter(name),
-                    &tensor,
-                    |bencher, tensor| {
-                        bencher.iter(|| {
-                            let _ = tensor.$op().unwrap();
-                            ctx.poll().unwrap();
-                        });
-                    },
-                );
-            }
-
-            group.finish();
-        }
-    };
-}
-
-bench_unary_op!(bench_abs, abs);
-bench_unary_op!(bench_acos, acos);
-bench_unary_op!(bench_acosh, acosh);
-bench_unary_op!(bench_asin, asin);
-bench_unary_op!(bench_asinh, asinh);
-bench_unary_op!(bench_atan, atan);
-bench_unary_op!(bench_atanh, atanh);
-bench_unary_op!(bench_ceil, ceil);
-bench_unary_op!(bench_copy, copy);
-bench_unary_op!(bench_cos, cos);
-bench_unary_op!(bench_cosh, cosh);
-bench_unary_op!(bench_exp, exp);
-bench_unary_op!(bench_floor, floor);
-bench_unary_op!(bench_log, log);
-bench_unary_op!(bench_neg, neg);
-bench_unary_op!(bench_rcp, rcp);
-bench_unary_op!(bench_round, round);
-bench_unary_op!(bench_sign, sign);
-bench_unary_op!(bench_sin, sin);
-bench_unary_op!(bench_sinh, sinh);
-bench_unary_op!(bench_tan, tan);
-bench_unary_op!(bench_tanh, tanh);
-
 criterion::criterion_group!(
     benches,
     bench_constant,
-    bench_abs,
-    bench_acos,
-    bench_acosh,
-    bench_asin,
-    bench_asinh,
-    bench_atan,
-    bench_atanh,
-    bench_ceil,
-    bench_copy,
-    bench_cos,
-    bench_cosh,
-    bench_exp,
-    bench_floor,
-    bench_log,
-    bench_neg,
-    bench_rcp,
-    bench_round,
-    bench_sign,
-    bench_sin,
-    bench_sinh,
-    bench_tan,
-    bench_tanh,
+    // Arithmetic
+    unary::arithmetic::bench_abs,
+    unary::arithmetic::bench_acos,
+    unary::arithmetic::bench_acosh,
+    unary::arithmetic::bench_asin,
+    unary::arithmetic::bench_asinh,
+    unary::arithmetic::bench_atan,
+    unary::arithmetic::bench_atanh,
+    unary::arithmetic::bench_copy,
+    unary::arithmetic::bench_cos,
+    unary::arithmetic::bench_cosh,
+    unary::arithmetic::bench_exp,
+    unary::arithmetic::bench_log,
+    unary::arithmetic::bench_neg,
+    unary::arithmetic::bench_rcp,
+    unary::arithmetic::bench_sign,
+    unary::arithmetic::bench_sin,
+    unary::arithmetic::bench_sinh,
+    unary::arithmetic::bench_tan,
+    unary::arithmetic::bench_tanh,
+    // Logical
+    unary::logical::bench_not,
+    // Rounding
+    unary::rounding::bench_ceil,
+    unary::rounding::bench_floor,
+    unary::rounding::bench_round,
 );
 criterion::criterion_main!(benches);

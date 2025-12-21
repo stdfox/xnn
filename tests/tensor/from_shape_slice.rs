@@ -35,7 +35,7 @@ fn test_from_shape_slice_u32() {
 #[test]
 fn test_from_shape_slice_3d() {
     let ctx = Context::try_default().unwrap();
-    let data: Vec<f32> = (0..24).map(|i| i as f32).collect();
+    let data: Vec<f32> = (0_u8..24).map(f32::from).collect();
     let t = Tensor::<f32>::from_shape_slice(&ctx, &[2, 3, 4], &data).unwrap();
     assert_eq!(t.shape(), &[2, 3, 4]);
     for (a, b) in t.to_vec().unwrap().iter().zip(data.iter()) {

@@ -60,7 +60,7 @@ fn test_round_2d() {
 #[test]
 fn test_round_non_aligned() {
     let ctx = Context::try_default().unwrap();
-    let data: Vec<f32> = (-21..21).map(|i| i as f32 * 0.3).collect();
+    let data: Vec<f32> = (-21_i16..21).map(|i| f32::from(i) * 0.3).collect();
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.round().unwrap();
     assert_eq!(result.shape(), &[42]);
@@ -70,9 +70,13 @@ fn test_round_non_aligned() {
         .iter()
         .map(|x| {
             let r = x.round();
-            // Handle half cases with banker's rounding
-            if (x - r).abs() == 0.5 {
-                if r as i32 % 2 == 0 { r } else { r - x.signum() }
+            let diff = (x - r).abs();
+            if (diff - 0.5).abs() < 1e-6 {
+                if r.rem_euclid(2.0) < 0.5 {
+                    r
+                } else {
+                    r - x.signum()
+                }
             } else {
                 r
             }

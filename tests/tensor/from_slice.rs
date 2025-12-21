@@ -33,10 +33,9 @@ fn test_from_slice_u32() {
 }
 
 #[test]
-#[allow(clippy::cast_precision_loss)]
 fn test_from_slice_non_aligned() {
     let ctx = Context::try_default().unwrap();
-    let data: Vec<f32> = (0..42).map(|i| i as f32).collect();
+    let data: Vec<f32> = (0_u8..42).map(f32::from).collect();
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     assert_eq!(t.shape(), &[42]);
     for (a, b) in t.to_vec().unwrap().iter().zip(data.iter()) {

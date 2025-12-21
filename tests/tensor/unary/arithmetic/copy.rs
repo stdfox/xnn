@@ -50,10 +50,9 @@ fn test_copy_2d() {
 }
 
 #[test]
-#[allow(clippy::cast_precision_loss)]
 fn test_copy_non_aligned() {
     let ctx = Context::try_default().unwrap();
-    let data: Vec<f32> = (0..42).map(|i| i as f32).collect();
+    let data: Vec<f32> = (0_u8..42).map(f32::from).collect();
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let copy = t.copy().unwrap();
     assert_eq!(copy.shape(), &[42]);

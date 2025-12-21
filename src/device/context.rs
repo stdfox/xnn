@@ -98,7 +98,8 @@ impl Context {
     ///
     /// Returns [`Error::Device`] if buffer size exceeds max storage buffer binding size.
     pub fn create_buffer<T: Element>(&self, len: usize) -> Result<Buffer<T>, Error> {
-        let size = len as u64 * core::mem::size_of::<T>() as u64;
+        let native_size = core::mem::size_of::<T::Native>() as u64;
+        let size = len as u64 * native_size;
         if size > MAX_STORAGE_BUFFER_SIZE {
             return Err(Error::Device(format!(
                 "buffer size {size} bytes exceeds limit ({MAX_STORAGE_BUFFER_SIZE} bytes)"
@@ -106,7 +107,7 @@ impl Context {
         }
 
         let padded_len = (len.div_ceil(4) * 4) as u64;
-        let padded_size = padded_len * core::mem::size_of::<T>() as u64;
+        let padded_size = padded_len * native_size;
         let buffer = self.inner.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: padded_size,
@@ -127,39 +128,40 @@ impl Context {
     ///
     /// Returns [`Error::Device`] if buffer size exceeds max storage buffer binding size.
     pub fn create_buffer_from_slice<T: Element>(&self, data: &[T]) -> Result<Buffer<T>, Error> {
-        let len = data.len() as u64;
-        let size = len * core::mem::size_of::<T>() as u64;
+        let native_size = core::mem::size_of::<T::Native>() as u64;
+        let size = data.len() as u64 * native_size;
         if size > MAX_STORAGE_BUFFER_SIZE {
             return Err(Error::Device(format!(
                 "buffer size {size} bytes exceeds limit ({MAX_STORAGE_BUFFER_SIZE} bytes)"
             )));
         }
 
-        let padded_len = len.div_ceil(4) * 4;
-        let mut padded_data = data.to_vec();
-        padded_data.resize(padded_len as usize, T::zeroed());
+        let padded_len = data.len().div_ceil(4) * 4;
+        let mut native_data: Vec<T::Native> = data.iter().map(|x| x.to_native()).collect();
+        native_data.resize(padded_len, T::Native::default());
 
         let buffer = self
             .inner
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
-                contents: bytemuck::cast_slice(&padded_data),
+                contents: bytemuck::cast_slice(&native_data),
                 usage: wgpu::BufferUsages::STORAGE
                     | wgpu::BufferUsages::COPY_SRC
                     | wgpu::BufferUsages::COPY_DST,
             });
 
-        Ok(Buffer::new(buffer, len as usize))
+        Ok(Buffer::new(buffer, data.len()))
     }
 
     /// Creates a uniform buffer from a single value.
     pub(crate) fn create_uniform_buffer<T: Element>(&self, value: T) -> wgpu::Buffer {
+        let native = value.to_native();
         self.inner
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
-                contents: bytemuck::bytes_of(&value),
+                contents: bytemuck::bytes_of(&native),
                 usage: wgpu::BufferUsages::UNIFORM,
             })
     }
@@ -176,7 +178,8 @@ impl Context {
             return Ok(Vec::new());
         }
 
-        let size = buffer.len() as u64 * core::mem::size_of::<T>() as u64;
+        let native_size = core::mem::size_of::<T::Native>() as u64;
+        let size = buffer.len() as u64 * native_size;
 
         let staging = self.inner.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
@@ -208,7 +211,8 @@ impl Context {
             .map_err(|e| Error::Device(format!("buffer mapping failed: {e}")))?;
 
         let data = slice.get_mapped_range();
-        let result: Vec<T> = bytemuck::cast_slice(&data).to_vec();
+        let native_data: &[T::Native] = bytemuck::cast_slice(&data);
+        let result: Vec<T> = native_data.iter().map(|x| T::from_native(*x)).collect();
         drop(data);
         staging.unmap();
 

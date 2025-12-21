@@ -113,10 +113,9 @@ fn test_neg_2d() {
 }
 
 #[test]
-#[allow(clippy::cast_precision_loss)]
 fn test_neg_non_aligned() {
     let ctx = Context::try_default().unwrap();
-    let data: Vec<f32> = (-21..21).map(|i| i as f32).collect();
+    let data: Vec<f32> = (-21_i8..21).map(f32::from).collect();
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.neg().unwrap();
     assert_eq!(result.shape(), &[42]);

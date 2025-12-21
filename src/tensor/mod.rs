@@ -6,7 +6,9 @@ mod ops;
 use core::any::TypeId;
 
 use crate::error::{Error, TensorError};
-use crate::{Buffer, Context, Element, FloatElement, NumericElement, SignedElement};
+use crate::{
+    Buffer, Context, Element, FloatElement, LogicalElement, NumericElement, SignedElement,
+};
 use layout::Layout;
 
 /// N-dimensional tensor with GPU-backed storage.
@@ -342,6 +344,24 @@ impl<T: FloatElement> Tensor<T> {
     ) -> Result<Self, Error> {
         let buffer = self.ctx.create_buffer(self.buffer.len())?;
         op(&self.ctx, &self.buffer, &buffer)?;
+
+        Ok(Self {
+            buffer,
+            layout: self.layout.clone(),
+            ctx: self.ctx.clone(),
+        })
+    }
+}
+
+impl<T: LogicalElement> Tensor<T> {
+    /// Computes logical NOT element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn not(&self) -> Result<Self, Error> {
+        let buffer = self.ctx.create_buffer(self.buffer.len())?;
+        ops::not(&self.ctx, &self.buffer, &buffer)?;
 
         Ok(Self {
             buffer,

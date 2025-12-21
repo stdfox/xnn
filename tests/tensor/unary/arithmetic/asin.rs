@@ -58,7 +58,7 @@ fn test_asin_2d() {
 #[test]
 fn test_asin_non_aligned() {
     let ctx = Context::try_default().unwrap();
-    let data: Vec<f32> = (-21..21).map(|i| i as f32 / 21.0).collect();
+    let data: Vec<f32> = (-21_i8..21).map(|i| f32::from(i) / 21.0).collect();
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.asin().unwrap();
     assert_eq!(result.shape(), &[42]);

@@ -7,10 +7,11 @@
 //!
 //! - [`Context`] — GPU context for buffer and pipeline management.
 //! - [`Buffer`] — Typed GPU buffer for element data.
-//! - [`Element`] — Trait for GPU-compatible types (`f32`, `i32`, `u32`).
+//! - [`Element`] — Trait for GPU-compatible types (`f32`, `i32`, `u32`, `bool`).
 //! - [`NumericElement`] — Marker trait for numeric types (`f32`, `i32`, `u32`).
 //! - [`SignedElement`] — Marker trait for signed types (`f32`, `i32`).
 //! - [`FloatElement`] — Marker trait for floating-point types (`f32`).
+//! - [`LogicalElement`] — Marker trait for logical types (`bool`).
 //! - [`Error`] — Error type for GPU operations.
 
 #![warn(missing_docs)]
@@ -25,6 +26,6 @@ mod element;
 mod tensor;
 
 pub use device::{Buffer, Context};
-pub use element::{Element, FloatElement, NumericElement, SignedElement};
+pub use element::{Element, FloatElement, LogicalElement, NumericElement, SignedElement};
 pub use error::Error;
 pub use tensor::Tensor;

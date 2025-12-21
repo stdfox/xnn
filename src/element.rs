@@ -1,38 +1,109 @@
 //! Traits for GPU-compatible element types.
 //!
-//! - [`Element`] — base trait for GPU buffer types (`f32`, `i32`, `u32`).
+//! - [`Element`] — base trait for GPU buffer types (`f32`, `i32`, `u32`, `bool`).
 //! - [`NumericElement`] — marker for numeric types (`f32`, `i32`, `u32`).
 //! - [`SignedElement`] — marker for signed types (`f32`, `i32`).
 //! - [`FloatElement`] — marker for floating-point types (`f32`).
+//! - [`LogicalElement`] — marker for logical types (`bool`).
 
 use core::fmt::Display;
 
 use bytemuck::{Pod, Zeroable};
 
 /// Trait for GPU-compatible element types.
-pub trait Element: Display + Copy + Clone + Pod + Zeroable + 'static {
+pub trait Element: Display + Copy + Clone + 'static {
+    /// Native GPU-compatible representation type.
+    type Native: Pod + Zeroable + Copy + Default;
+
     /// Returns the WGSL type name.
     fn wgsl_type() -> &'static str;
+
+    /// Convert to native GPU representation.
+    fn to_native(self) -> Self::Native;
+
+    /// Convert from native GPU representation.
+    fn from_native(native: Self::Native) -> Self;
+
+    /// Returns the zero value.
+    #[must_use]
+    fn zeroed() -> Self {
+        Self::from_native(Self::Native::zeroed())
+    }
 }
 
 impl Element for f32 {
+    type Native = f32;
+
     #[inline]
     fn wgsl_type() -> &'static str {
         "f32"
     }
+
+    #[inline]
+    fn to_native(self) -> Self {
+        self
+    }
+
+    #[inline]
+    fn from_native(native: Self) -> Self {
+        native
+    }
 }
 
 impl Element for i32 {
+    type Native = i32;
+
     #[inline]
     fn wgsl_type() -> &'static str {
         "i32"
     }
+
+    #[inline]
+    fn to_native(self) -> Self {
+        self
+    }
+
+    #[inline]
+    fn from_native(native: Self) -> Self {
+        native
+    }
 }
 
 impl Element for u32 {
+    type Native = u32;
+
     #[inline]
     fn wgsl_type() -> &'static str {
         "u32"
+    }
+
+    #[inline]
+    fn to_native(self) -> Self {
+        self
+    }
+
+    #[inline]
+    fn from_native(native: Self) -> Self {
+        native
+    }
+}
+
+impl Element for bool {
+    type Native = u32;
+
+    #[inline]
+    fn wgsl_type() -> &'static str {
+        "u32"
+    }
+
+    #[inline]
+    fn to_native(self) -> u32 {
+        u32::from(self)
+    }
+
+    #[inline]
+    fn from_native(native: u32) -> Self {
+        native != 0
     }
 }
 
@@ -53,3 +124,8 @@ impl SignedElement for i32 {}
 pub trait FloatElement: Element {}
 
 impl FloatElement for f32 {}
+
+/// Trait for logical GPU-compatible types.
+pub trait LogicalElement: Element {}
+
+impl LogicalElement for bool {}

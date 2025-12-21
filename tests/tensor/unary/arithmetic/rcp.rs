@@ -34,7 +34,7 @@ fn test_rcp_2d() {
 #[test]
 fn test_rcp_non_aligned() {
     let ctx = Context::try_default().unwrap();
-    let data: Vec<f32> = (1..43).map(|i| i as f32).collect();
+    let data: Vec<f32> = (1_u8..43).map(f32::from).collect();
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.rcp().unwrap();
     assert_eq!(result.shape(), &[42]);
