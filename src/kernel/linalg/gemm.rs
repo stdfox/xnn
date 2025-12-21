@@ -5,8 +5,9 @@
 
 use wgpu::util::DeviceExt as _;
 
+use crate::element::FloatElement;
 use crate::kernel::debug_assert_len;
-use crate::{Buffer, Context, FloatElement};
+use crate::{Buffer, Context};
 
 /// Block size for register tiling (each thread computes BM×BN elements).
 const BLOCK_SIZE: u32 = 4;

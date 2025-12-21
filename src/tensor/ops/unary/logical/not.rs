@@ -2,7 +2,8 @@
 
 use core::any::TypeId;
 
-use crate::{Buffer, Context, Error, LogicalElement};
+use crate::element::LogicalElement;
+use crate::{Buffer, Context, Error};
 
 /// Maximum workgroups per dimension.
 const MAX_WORKGROUPS: u32 = 65535;

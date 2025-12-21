@@ -154,14 +154,13 @@ impl Context {
         Ok(Buffer::new(buffer, data.len()))
     }
 
-    /// Creates a uniform buffer from a single value.
-    pub(crate) fn create_uniform_buffer<T: Element>(&self, value: T) -> wgpu::Buffer {
-        let native = value.to_native();
+    /// Creates a uniform buffer from a value.
+    pub(crate) fn create_uniform_buffer<T: bytemuck::Pod>(&self, value: &T) -> wgpu::Buffer {
         self.inner
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
-                contents: bytemuck::bytes_of(&native),
+                contents: bytemuck::bytes_of(value),
                 usage: wgpu::BufferUsages::UNIFORM,
             })
     }

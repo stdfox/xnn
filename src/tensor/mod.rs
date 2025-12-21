@@ -5,10 +5,9 @@ mod ops;
 
 use core::any::TypeId;
 
+use crate::element::{FloatElement, IntegerElement, LogicalElement, NumericElement, SignedElement};
 use crate::error::{Error, TensorError};
-use crate::{
-    Buffer, Context, Element, FloatElement, LogicalElement, NumericElement, SignedElement,
-};
+use crate::{Buffer, Context, Element};
 use layout::Layout;
 
 /// N-dimensional tensor with GPU-backed storage.
@@ -37,13 +36,13 @@ impl<T: Element> Tensor<T> {
             return Err(TensorError::InvalidShape("value must not be empty".into()).into());
         }
 
-        let layout = Layout::from_shape(shape)?;
+        let layout = Layout::from_dimensions(shape)?;
         let volume = layout.size();
 
         let buffer = match value.len() {
             1 => {
                 let buffer = ctx.create_buffer(volume)?;
-                let uniform = ctx.create_uniform_buffer(value[0]);
+                let uniform = ctx.create_uniform_buffer(&value[0].to_native());
                 ops::constant(ctx, &buffer, &uniform)?;
                 buffer
             }
@@ -99,9 +98,9 @@ impl<T: Element> Tensor<T> {
         })
     }
 
-    /// Returns the tensor shape.
+    /// Returns the tensor dimensions.
     #[must_use]
-    pub fn shape(&self) -> &[usize] {
+    pub fn dimensions(&self) -> &[usize] {
         self.layout.dimensions()
     }
 
@@ -113,9 +112,105 @@ impl<T: Element> Tensor<T> {
     pub fn to_vec(&self) -> Result<Vec<T>, Error> {
         self.ctx.read_buffer(&self.buffer)
     }
+
+    /// Computes broadcast parameters for two tensors.
+    #[allow(clippy::type_complexity)]
+    fn broadcast_with(&self, other: &Self) -> Result<(Layout, Box<[usize]>, Box<[usize]>), Error> {
+        let out_dimensions = self
+            .layout
+            .broadcast_dimensions(&other.layout)
+            .ok_or_else(|| {
+                TensorError::InvalidShape(format!(
+                    "dimensions {:?} and {:?} are not broadcast-compatible",
+                    self.dimensions(),
+                    other.dimensions()
+                ))
+            })?;
+
+        let a_strides = self.layout.broadcast_strides(&out_dimensions);
+        let b_strides = other.layout.broadcast_strides(&out_dimensions);
+        let layout = Layout::from_dimensions(&out_dimensions)?;
+
+        Ok((layout, a_strides, b_strides))
+    }
+
+    /// Applies a binary operation with broadcasting and returns a new tensor.
+    #[allow(clippy::type_complexity)]
+    fn binary_op(
+        &self,
+        other: &Self,
+        op: fn(
+            &Context,
+            &Buffer<T>,
+            &Buffer<T>,
+            &Buffer<T>,
+            &[usize],
+            &[usize],
+            &[usize],
+        ) -> Result<(), Error>,
+    ) -> Result<Self, Error> {
+        let (layout, a_strides, b_strides) = self.broadcast_with(other)?;
+        let buffer = self.ctx.create_buffer(layout.size())?;
+
+        op(
+            &self.ctx,
+            &self.buffer,
+            &other.buffer,
+            &buffer,
+            layout.dimensions(),
+            &a_strides,
+            &b_strides,
+        )?;
+
+        Ok(Self {
+            buffer,
+            layout,
+            ctx: self.ctx.clone(),
+        })
+    }
 }
 
 impl<T: NumericElement> Tensor<T> {
+    /// Element-wise addition with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn add(&self, other: &Self) -> Result<Self, Error> {
+        self.binary_op(other, ops::add)
+    }
+
+    /// Element-wise subtraction with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn sub(&self, other: &Self) -> Result<Self, Error> {
+        self.binary_op(other, ops::sub)
+    }
+
+    /// Element-wise multiplication with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn mul(&self, other: &Self) -> Result<Self, Error> {
+        self.binary_op(other, ops::mul)
+    }
+
+    /// Element-wise division with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn div(&self, other: &Self) -> Result<Self, Error> {
+        self.binary_op(other, ops::div)
+    }
+
     /// Computes absolute value element-wise.
     ///
     /// # Errors
@@ -173,7 +268,29 @@ impl<T: SignedElement> Tensor<T> {
     }
 }
 
+impl<T: IntegerElement> Tensor<T> {
+    /// Element-wise remainder with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn rem(&self, other: &Self) -> Result<Self, Error> {
+        self.binary_op(other, ops::rem)
+    }
+}
+
 impl<T: FloatElement> Tensor<T> {
+    /// Element-wise power with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn pow(&self, other: &Self) -> Result<Self, Error> {
+        self.binary_op(other, ops::pow)
+    }
+
     /// Computes arc cosine element-wise.
     ///
     /// # Errors

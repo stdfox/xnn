@@ -3,6 +3,7 @@
 //! - [`Element`] — base trait for GPU buffer types (`f32`, `i32`, `u32`, `bool`).
 //! - [`NumericElement`] — marker for numeric types (`f32`, `i32`, `u32`).
 //! - [`SignedElement`] — marker for signed types (`f32`, `i32`).
+//! - [`IntegerElement`] — marker for integer types (`i32`, `u32`).
 //! - [`FloatElement`] — marker for floating-point types (`f32`).
 //! - [`LogicalElement`] — marker for logical types (`bool`).
 
@@ -13,15 +14,18 @@ use bytemuck::{Pod, Zeroable};
 /// Trait for GPU-compatible element types.
 pub trait Element: Display + Copy + Clone + 'static {
     /// Native GPU-compatible representation type.
-    type Native: Pod + Zeroable + Copy + Default;
+    type Native: Default + Copy + Pod + Zeroable;
 
     /// Returns the WGSL type name.
+    #[must_use]
     fn wgsl_type() -> &'static str;
 
     /// Convert to native GPU representation.
+    #[must_use]
     fn to_native(self) -> Self::Native;
 
     /// Convert from native GPU representation.
+    #[must_use]
     fn from_native(native: Self::Native) -> Self;
 
     /// Returns the zero value.
@@ -119,6 +123,12 @@ pub trait SignedElement: Element {}
 
 impl SignedElement for f32 {}
 impl SignedElement for i32 {}
+
+/// Trait for integer GPU-compatible types.
+pub trait IntegerElement: Element {}
+
+impl IntegerElement for i32 {}
+impl IntegerElement for u32 {}
 
 /// Trait for floating-point GPU-compatible types.
 pub trait FloatElement: Element {}

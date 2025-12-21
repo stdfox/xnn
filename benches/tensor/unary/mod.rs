@@ -1,12 +1,12 @@
 //! Unary operation benchmarks.
 
-pub mod arithmetic;
-pub mod logical;
-pub mod rounding;
+pub(crate) mod arithmetic;
+pub(crate) mod logical;
+pub(crate) mod rounding;
 
 macro_rules! bench_unary_op {
     ($name:ident, $op:ident) => {
-        pub fn $name(c: &mut criterion::Criterion) {
+        pub(crate) fn $name(c: &mut criterion::Criterion) {
             let ctx = xnn::Context::try_default().unwrap();
             let mut group = crate::configure(c, concat!("tensor/", stringify!($op)));
 

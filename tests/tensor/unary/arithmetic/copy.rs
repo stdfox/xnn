@@ -11,7 +11,7 @@ fn test_copy_f32() {
     let data = vec![1.0, 2.0, 3.0, 4.0];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let copy = t.copy().unwrap();
-    assert_eq!(copy.shape(), t.shape());
+    assert_eq!(copy.dimensions(), t.dimensions());
     for (a, b) in copy.to_vec().unwrap().iter().zip(data.iter()) {
         assert_relative_eq!(a, b, epsilon = 1e-4);
     }
@@ -23,7 +23,7 @@ fn test_copy_i32() {
     let data = vec![1, 2, 3, 4];
     let t = Tensor::<i32>::from_slice(&ctx, &data).unwrap();
     let copy = t.copy().unwrap();
-    assert_eq!(copy.shape(), t.shape());
+    assert_eq!(copy.dimensions(), t.dimensions());
     assert_eq!(copy.to_vec().unwrap(), data);
 }
 
@@ -33,7 +33,7 @@ fn test_copy_u32() {
     let data = vec![1u32, 2, 3, 4];
     let t = Tensor::<u32>::from_slice(&ctx, &data).unwrap();
     let copy = t.copy().unwrap();
-    assert_eq!(copy.shape(), t.shape());
+    assert_eq!(copy.dimensions(), t.dimensions());
     assert_eq!(copy.to_vec().unwrap(), data);
 }
 
@@ -43,7 +43,7 @@ fn test_copy_2d() {
     let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
     let t = Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &data).unwrap();
     let copy = t.copy().unwrap();
-    assert_eq!(copy.shape(), &[2, 3]);
+    assert_eq!(copy.dimensions(), &[2, 3]);
     for (a, b) in copy.to_vec().unwrap().iter().zip(data.iter()) {
         assert_relative_eq!(a, b, epsilon = 1e-4);
     }
@@ -55,7 +55,7 @@ fn test_copy_non_aligned() {
     let data: Vec<f32> = (0_u8..42).map(f32::from).collect();
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let copy = t.copy().unwrap();
-    assert_eq!(copy.shape(), &[42]);
+    assert_eq!(copy.dimensions(), &[42]);
     for (a, b) in copy.to_vec().unwrap().iter().zip(data.iter()) {
         assert_relative_eq!(a, b, epsilon = 1e-4);
     }
@@ -67,7 +67,7 @@ fn test_copy_large() {
     let len = 4096 * 4096;
     let t = Tensor::<f32>::constant(&ctx, &[len], &[PI]).unwrap();
     let copy = t.copy().unwrap();
-    assert_eq!(copy.shape(), &[len]);
+    assert_eq!(copy.dimensions(), &[len]);
     for val in &copy.to_vec().unwrap() {
         assert_relative_eq!(*val, PI, epsilon = 1e-4);
     }
@@ -78,7 +78,7 @@ fn test_copy_scalar() {
     let ctx = Context::try_default().unwrap();
     let t = Tensor::<f32>::constant(&ctx, &[], &[42.0]).unwrap();
     let copy = t.copy().unwrap();
-    assert_eq!(copy.shape(), &[] as &[usize]);
+    assert_eq!(copy.dimensions(), &[] as &[usize]);
     assert_relative_eq!(copy.to_vec().unwrap()[0], 42.0, epsilon = 1e-4);
 }
 

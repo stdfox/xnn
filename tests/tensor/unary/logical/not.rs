@@ -8,7 +8,7 @@ fn test_not_basic() {
     let data = vec![true, false, true, false];
     let t = Tensor::<bool>::from_slice(&ctx, &data).unwrap();
     let result = t.not().unwrap();
-    assert_eq!(result.shape(), t.shape());
+    assert_eq!(result.dimensions(), t.dimensions());
     let out = result.to_vec().unwrap();
     let expected = [false, true, false, true];
     assert_eq!(out, expected);
@@ -42,7 +42,7 @@ fn test_not_2d() {
     let data = vec![true, false, true, false, true, false];
     let t = Tensor::<bool>::from_shape_slice(&ctx, &[2, 3], &data).unwrap();
     let result = t.not().unwrap();
-    assert_eq!(result.shape(), &[2, 3]);
+    assert_eq!(result.dimensions(), &[2, 3]);
     let out = result.to_vec().unwrap();
     let expected = vec![false, true, false, true, false, true];
     assert_eq!(out, expected);
@@ -54,7 +54,7 @@ fn test_not_non_aligned() {
     let data: Vec<bool> = (0..42).map(|i| i % 2 == 0).collect();
     let t = Tensor::<bool>::from_slice(&ctx, &data).unwrap();
     let result = t.not().unwrap();
-    assert_eq!(result.shape(), &[42]);
+    assert_eq!(result.dimensions(), &[42]);
     let out = result.to_vec().unwrap();
     let expected: Vec<bool> = data.iter().map(|x| !*x).collect();
     assert_eq!(out, expected);
@@ -66,7 +66,7 @@ fn test_not_large() {
     let len = 4096 * 4096;
     let t = Tensor::<bool>::constant(&ctx, &[len], &[true]).unwrap();
     let result = t.not().unwrap();
-    assert_eq!(result.shape(), &[len]);
+    assert_eq!(result.dimensions(), &[len]);
     for val in &result.to_vec().unwrap() {
         assert!(!*val);
     }
@@ -77,7 +77,7 @@ fn test_not_scalar() {
     let ctx = Context::try_default().unwrap();
     let t = Tensor::<bool>::constant(&ctx, &[], &[true]).unwrap();
     let result = t.not().unwrap();
-    assert_eq!(result.shape(), &[] as &[usize]);
+    assert_eq!(result.dimensions(), &[] as &[usize]);
     assert!(!result.to_vec().unwrap()[0]);
 }
 

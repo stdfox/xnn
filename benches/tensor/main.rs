@@ -1,5 +1,6 @@
 //! Tensor benchmarks.
 
+mod binary;
 mod unary;
 
 use std::time::Duration;
@@ -25,9 +26,55 @@ fn configure<'a>(c: &'a mut Criterion, name: &str) -> BenchmarkGroup<'a, WallTim
     group
 }
 
-fn random_vec(len: usize) -> Vec<f32> {
+trait RandomValue {
+    fn random_value(rng: &mut StdRng) -> Self;
+    fn random_nonzero(rng: &mut StdRng) -> Self;
+}
+
+impl RandomValue for f32 {
+    fn random_value(rng: &mut StdRng) -> Self {
+        rng.random()
+    }
+    fn random_nonzero(rng: &mut StdRng) -> Self {
+        rng.random_range(0.1..1.0)
+    }
+}
+
+impl RandomValue for i32 {
+    fn random_value(rng: &mut StdRng) -> Self {
+        rng.random_range(1..1000)
+    }
+    fn random_nonzero(rng: &mut StdRng) -> Self {
+        rng.random_range(1..100)
+    }
+}
+
+impl RandomValue for u32 {
+    fn random_value(rng: &mut StdRng) -> Self {
+        rng.random_range(1..1000)
+    }
+    fn random_nonzero(rng: &mut StdRng) -> Self {
+        rng.random_range(1..100)
+    }
+}
+
+impl RandomValue for bool {
+    fn random_value(rng: &mut StdRng) -> Self {
+        rng.random()
+    }
+    fn random_nonzero(rng: &mut StdRng) -> Self {
+        rng.random()
+    }
+}
+
+fn random_vec<T: RandomValue>(len: usize) -> Vec<T> {
     let mut rng = StdRng::seed_from_u64(42);
-    (0..len).map(|_| rng.random()).collect()
+    (0..len).map(|_| T::random_value(&mut rng)).collect()
+}
+
+fn random_vec_nonzero<T: RandomValue>(len: usize) -> Vec<T> {
+    let mut rng = StdRng::seed_from_u64(42);
+    (0..len).map(|_| T::random_nonzero(&mut rng)).collect()
 }
 
 fn bench_constant(c: &mut Criterion) {
@@ -56,7 +103,14 @@ fn bench_constant(c: &mut Criterion) {
 criterion::criterion_group!(
     benches,
     bench_constant,
-    // Arithmetic
+    // Binary arithmetic
+    binary::arithmetic::bench_add,
+    binary::arithmetic::bench_sub,
+    binary::arithmetic::bench_mul,
+    binary::arithmetic::bench_div,
+    binary::arithmetic::bench_rem,
+    binary::arithmetic::bench_pow,
+    // Unary arithmetic
     unary::arithmetic::bench_abs,
     unary::arithmetic::bench_acos,
     unary::arithmetic::bench_acosh,
@@ -76,9 +130,9 @@ criterion::criterion_group!(
     unary::arithmetic::bench_sinh,
     unary::arithmetic::bench_tan,
     unary::arithmetic::bench_tanh,
-    // Logical
+    // Unary logical
     unary::logical::bench_not,
-    // Rounding
+    // Unary rounding
     unary::rounding::bench_ceil,
     unary::rounding::bench_floor,
     unary::rounding::bench_round,

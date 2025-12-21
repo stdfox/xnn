@@ -6,22 +6,16 @@
 //! # Categories
 //!
 //! - **activation** — `relu`, `sigmoid`.
-//! - **arithmetic** — `add`, `sub`, `mul`, `div`, `rem`, `pow` (and scalar variants).
 //! - **linalg** — `gemm`, `transpose`.
 //! - **reduction** — `sum`.
 //! - **shape** — `broadcast_rows`.
 
 mod activation;
-mod arithmetic;
 mod linalg;
 mod reduction;
 mod shape;
 
 pub use activation::{relu, sigmoid};
-pub use arithmetic::{
-    add, add_scalar, div, div_scalar, mul, mul_scalar, pow, pow_scalar, rem, rem_scalar, sub,
-    sub_scalar,
-};
 pub use linalg::{gemm, transpose};
 pub use reduction::sum;
 pub use shape::broadcast_rows;

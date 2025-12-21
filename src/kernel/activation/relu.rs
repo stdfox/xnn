@@ -2,8 +2,9 @@
 //!
 //! Applies the Rectified Linear Unit activation function using a compute shader.
 
+use crate::element::FloatElement;
 use crate::kernel::debug_assert_same_len;
-use crate::{Buffer, Context, FloatElement};
+use crate::{Buffer, Context};
 
 /// Workgroup size for the `relu` kernel.
 const WORKGROUP_SIZE: u32 = 256;

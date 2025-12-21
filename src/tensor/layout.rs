@@ -12,25 +12,24 @@ pub(crate) struct Layout {
 }
 
 impl Layout {
-    /// Creates a new contiguous layout from shape.
+    /// Creates a new contiguous layout from dimensions.
     ///
     /// # Errors
     ///
-    /// - [`TensorError::InvalidShape`](crate::error::TensorError::InvalidShape) if any dimension is zero.
-    pub(crate) fn from_shape(shape: &[usize]) -> Result<Self, Error> {
-        if shape.contains(&0) {
+    /// - [`TensorError::InvalidShape`] if any dimension is zero.
+    pub(crate) fn from_dimensions(dimensions: &[usize]) -> Result<Self, Error> {
+        if dimensions.contains(&0) {
             return Err(TensorError::InvalidShape("dimensions must be non-zero".into()).into());
         }
 
         Ok(Self {
-            dimensions: shape.into(),
-            strides: Self::compute_strides(shape),
+            dimensions: dimensions.into(),
+            strides: Self::compute_strides(dimensions),
             offset: 0,
         })
     }
 
     /// Returns the dimensions as a slice.
-    #[allow(dead_code)]
     pub(crate) fn dimensions(&self) -> &[usize] {
         &self.dimensions
     }
@@ -54,6 +53,62 @@ impl Layout {
         self.dimensions.iter().product::<usize>().max(1)
     }
 
+    /// Computes broadcast output dimensions for two layouts.
+    ///
+    /// Returns `None` if dimensions are incompatible.
+    pub(crate) fn broadcast_dimensions(&self, other: &Layout) -> Option<Box<[usize]>> {
+        let a = &self.dimensions;
+        let b = &other.dimensions;
+
+        let mut result: Vec<usize> = a
+            .iter()
+            .rev()
+            .copied()
+            .chain(core::iter::repeat(1))
+            .zip(b.iter().rev().copied().chain(core::iter::repeat(1)))
+            .take(a.len().max(b.len()))
+            .map(|(a, b)| match (a, b) {
+                (a, b) if a == b => Some(a),
+                (1, b) => Some(b),
+                (a, 1) => Some(a),
+                _ => None,
+            })
+            .collect::<Option<_>>()?;
+
+        result.reverse();
+
+        Some(result.into_boxed_slice())
+    }
+
+    /// Computes strides for broadcasting this layout to target shape.
+    ///
+    /// Broadcast dimensions have stride 0.
+    pub(crate) fn broadcast_strides(&self, target: &[usize]) -> Box<[usize]> {
+        let dimensions = &self.dimensions;
+        let strides = &self.strides;
+
+        let mut result: Vec<usize> =
+            core::iter::repeat_n(0, target.len().saturating_sub(dimensions.len()))
+                .chain(
+                    dimensions
+                        .iter()
+                        .zip(strides)
+                        .zip(
+                            target
+                                .iter()
+                                .skip(target.len().saturating_sub(dimensions.len())),
+                        )
+                        .map(|((&dim, &stride), &t)| if dim == t { stride } else { 0 }),
+                )
+                .collect();
+
+        if result.len() < target.len() {
+            result.resize(target.len(), 0);
+        }
+
+        result.into_boxed_slice()
+    }
+
     /// Computes row-major (C-contiguous) strides for the given dimensions.
     fn compute_strides(dimensions: &[usize]) -> Box<[usize]> {
         let mut strides = vec![1; dimensions.len()];
@@ -69,77 +124,166 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_from_shape() {
+    fn test_from_dimensions() {
         // valid
-        assert!(Layout::from_shape(&[1, 2, 3, 4]).is_ok());
-        assert!(Layout::from_shape(&[2, 2]).is_ok());
-        assert!(Layout::from_shape(&[4]).is_ok());
-        assert!(Layout::from_shape(&[]).is_ok());
+        assert!(Layout::from_dimensions(&[1, 2, 3, 4]).is_ok());
+        assert!(Layout::from_dimensions(&[2, 2]).is_ok());
+        assert!(Layout::from_dimensions(&[4]).is_ok());
+        assert!(Layout::from_dimensions(&[]).is_ok());
 
         // zero dimension
-        assert!(Layout::from_shape(&[0, 1, 1]).is_err());
-        assert!(Layout::from_shape(&[1, 0, 1]).is_err());
-        assert!(Layout::from_shape(&[1, 1, 0]).is_err());
-        assert!(Layout::from_shape(&[0]).is_err());
+        assert!(Layout::from_dimensions(&[0, 1, 1]).is_err());
+        assert!(Layout::from_dimensions(&[1, 0, 1]).is_err());
+        assert!(Layout::from_dimensions(&[1, 1, 0]).is_err());
+        assert!(Layout::from_dimensions(&[0]).is_err());
     }
 
     #[test]
     fn test_dimensions() {
-        let l = Layout::from_shape(&[1, 2, 3, 4]).unwrap();
+        let l = Layout::from_dimensions(&[1, 2, 3, 4]).unwrap();
         assert_eq!(l.dimensions(), &[1, 2, 3, 4]);
 
-        let l = Layout::from_shape(&[2, 2]).unwrap();
+        let l = Layout::from_dimensions(&[2, 2]).unwrap();
         assert_eq!(l.dimensions(), &[2, 2]);
 
-        let l = Layout::from_shape(&[4]).unwrap();
+        let l = Layout::from_dimensions(&[4]).unwrap();
         assert_eq!(l.dimensions(), &[4]);
 
-        let l = Layout::from_shape(&[]).unwrap();
+        let l = Layout::from_dimensions(&[]).unwrap();
         assert_eq!(l.dimensions(), &[] as &[usize]);
     }
 
     #[test]
     fn test_strides() {
-        let l = Layout::from_shape(&[1, 2, 3, 4]).unwrap();
+        let l = Layout::from_dimensions(&[1, 2, 3, 4]).unwrap();
         assert_eq!(l.strides(), &[24, 12, 4, 1]);
 
-        let l = Layout::from_shape(&[2, 2]).unwrap();
+        let l = Layout::from_dimensions(&[2, 2]).unwrap();
         assert_eq!(l.strides(), &[2, 1]);
 
-        let l = Layout::from_shape(&[4]).unwrap();
+        let l = Layout::from_dimensions(&[4]).unwrap();
         assert_eq!(l.strides(), &[1]);
 
-        let l = Layout::from_shape(&[]).unwrap();
+        let l = Layout::from_dimensions(&[]).unwrap();
         assert_eq!(l.strides(), &[] as &[usize]);
     }
 
     #[test]
     fn test_offset() {
-        let l = Layout::from_shape(&[1, 2, 3, 4]).unwrap();
+        let l = Layout::from_dimensions(&[1, 2, 3, 4]).unwrap();
         assert_eq!(l.offset(), 0);
 
-        let l = Layout::from_shape(&[2, 2]).unwrap();
+        let l = Layout::from_dimensions(&[2, 2]).unwrap();
         assert_eq!(l.offset(), 0);
 
-        let l = Layout::from_shape(&[4]).unwrap();
+        let l = Layout::from_dimensions(&[4]).unwrap();
         assert_eq!(l.offset(), 0);
 
-        let l = Layout::from_shape(&[]).unwrap();
+        let l = Layout::from_dimensions(&[]).unwrap();
         assert_eq!(l.offset(), 0);
     }
 
     #[test]
     fn test_size() {
-        let l = Layout::from_shape(&[1, 2, 3, 4]).unwrap();
+        let l = Layout::from_dimensions(&[1, 2, 3, 4]).unwrap();
         assert_eq!(l.size(), 24);
 
-        let l = Layout::from_shape(&[2, 2]).unwrap();
+        let l = Layout::from_dimensions(&[2, 2]).unwrap();
         assert_eq!(l.size(), 4);
 
-        let l = Layout::from_shape(&[4]).unwrap();
+        let l = Layout::from_dimensions(&[4]).unwrap();
         assert_eq!(l.size(), 4);
 
-        let l = Layout::from_shape(&[]).unwrap();
+        let l = Layout::from_dimensions(&[]).unwrap();
         assert_eq!(l.size(), 1);
+    }
+
+    #[test]
+    fn test_broadcast_dimensions_same() {
+        let a = Layout::from_dimensions(&[2, 3, 4]).unwrap();
+        let b = Layout::from_dimensions(&[2, 3, 4]).unwrap();
+        assert_eq!(a.broadcast_dimensions(&b).unwrap().as_ref(), &[2, 3, 4]);
+    }
+
+    #[test]
+    fn test_broadcast_dimensions_scalar() {
+        let a = Layout::from_dimensions(&[2, 3, 4]).unwrap();
+        let b = Layout::from_dimensions(&[]).unwrap();
+        assert_eq!(a.broadcast_dimensions(&b).unwrap().as_ref(), &[2, 3, 4]);
+        assert_eq!(b.broadcast_dimensions(&a).unwrap().as_ref(), &[2, 3, 4]);
+    }
+
+    #[test]
+    fn test_broadcast_dimensions_trailing() {
+        let a = Layout::from_dimensions(&[2, 3, 4]).unwrap();
+        let b = Layout::from_dimensions(&[4]).unwrap();
+        assert_eq!(a.broadcast_dimensions(&b).unwrap().as_ref(), &[2, 3, 4]);
+        assert_eq!(b.broadcast_dimensions(&a).unwrap().as_ref(), &[2, 3, 4]);
+    }
+
+    #[test]
+    fn test_broadcast_dimensions_expand() {
+        let a = Layout::from_dimensions(&[3, 1]).unwrap();
+        let b = Layout::from_dimensions(&[1, 4]).unwrap();
+        assert_eq!(a.broadcast_dimensions(&b).unwrap().as_ref(), &[3, 4]);
+    }
+
+    #[test]
+    fn test_broadcast_dimensions_multi_expand() {
+        let a = Layout::from_dimensions(&[2, 1, 4]).unwrap();
+        let b = Layout::from_dimensions(&[3, 1]).unwrap();
+        assert_eq!(a.broadcast_dimensions(&b).unwrap().as_ref(), &[2, 3, 4]);
+    }
+
+    #[test]
+    fn test_broadcast_dimensions_incompatible() {
+        let a = Layout::from_dimensions(&[3]).unwrap();
+        let b = Layout::from_dimensions(&[4]).unwrap();
+        assert!(a.broadcast_dimensions(&b).is_none());
+
+        let a = Layout::from_dimensions(&[2, 3]).unwrap();
+        let b = Layout::from_dimensions(&[3, 2]).unwrap();
+        assert!(a.broadcast_dimensions(&b).is_none());
+    }
+
+    #[test]
+    fn test_broadcast_strides_same() {
+        let a = Layout::from_dimensions(&[2, 3, 4]).unwrap();
+        let target = [2, 3, 4];
+        assert_eq!(a.broadcast_strides(&target).as_ref(), &[12, 4, 1]);
+    }
+
+    #[test]
+    fn test_broadcast_strides_scalar() {
+        let a = Layout::from_dimensions(&[]).unwrap();
+        let target = [2, 3, 4];
+        assert_eq!(a.broadcast_strides(&target).as_ref(), &[0, 0, 0]);
+    }
+
+    #[test]
+    fn test_broadcast_strides_trailing() {
+        let a = Layout::from_dimensions(&[4]).unwrap();
+        let target = [2, 3, 4];
+        assert_eq!(a.broadcast_strides(&target).as_ref(), &[0, 0, 1]);
+    }
+
+    #[test]
+    fn test_broadcast_strides_expand() {
+        let a = Layout::from_dimensions(&[3, 1]).unwrap();
+        let target = [3, 4];
+        assert_eq!(a.broadcast_strides(&target).as_ref(), &[1, 0]);
+
+        let b = Layout::from_dimensions(&[1, 4]).unwrap();
+        assert_eq!(b.broadcast_strides(&target).as_ref(), &[0, 1]);
+    }
+
+    #[test]
+    fn test_broadcast_strides_multi_expand() {
+        let a = Layout::from_dimensions(&[2, 1, 4]).unwrap();
+        let target = [2, 3, 4];
+        assert_eq!(a.broadcast_strides(&target).as_ref(), &[4, 0, 1]);
+
+        let b = Layout::from_dimensions(&[3, 1]).unwrap();
+        assert_eq!(b.broadcast_strides(&target).as_ref(), &[0, 1, 0]);
     }
 }

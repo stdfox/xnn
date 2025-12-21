@@ -1,5 +1,6 @@
 //! Tensor integration tests.
 
+mod binary;
 mod constant;
 mod from_shape_slice;
 mod from_slice;

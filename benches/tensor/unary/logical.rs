@@ -5,7 +5,7 @@ use xnn::{Context, Tensor};
 
 use crate::{SIZES, configure};
 
-pub fn bench_not(c: &mut Criterion) {
+pub(crate) fn bench_not(c: &mut Criterion) {
     let ctx = Context::try_default().unwrap();
     let mut group = configure(c, "tensor/not");
 
