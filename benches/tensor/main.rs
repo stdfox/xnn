@@ -117,6 +117,9 @@ criterion::criterion_group!(
     binary::comparison::bench_ge,
     binary::comparison::bench_eq,
     binary::comparison::bench_ne,
+    // Binary logical
+    binary::logical::bench_and,
+    binary::logical::bench_or,
     // Unary arithmetic
     unary::arithmetic::bench_abs,
     unary::arithmetic::bench_acos,

@@ -565,6 +565,26 @@ impl<T: FloatElement> Tensor<T> {
 }
 
 impl<T: LogicalElement> Tensor<T> {
+    /// Element-wise logical AND with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn and(&self, other: &Self) -> Result<Self, Error> {
+        self.binary_op(other, ops::and)
+    }
+
+    /// Element-wise logical OR with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn or(&self, other: &Self) -> Result<Self, Error> {
+        self.binary_op(other, ops::or)
+    }
+
     /// Computes logical NOT element-wise.
     ///
     /// # Errors

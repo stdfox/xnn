@@ -2,6 +2,7 @@
 
 mod arithmetic;
 mod comparison;
+mod logical;
 
 /// Test vector A: `[1.0, 2.0, 3.0, 4.0]`
 pub const VECTOR_A: &[f32] = &[1.0, 2.0, 3.0, 4.0];
@@ -40,6 +41,24 @@ pub const VECTOR_I32_B: &[i32] = &[10, 20, 30, 40];
 pub const VECTOR_U32_A: &[u32] = &[1, 2, 3, 4];
 /// Unsigned integer vector B: `[10, 20, 30, 40]`
 pub const VECTOR_U32_B: &[u32] = &[10, 20, 30, 40];
+
+/// Boolean vector A: `[true, true, false, false]`
+pub const VECTOR_BOOL_A: &[bool] = &[true, true, false, false];
+/// Boolean vector B: `[true, false, true, false]`
+pub const VECTOR_BOOL_B: &[bool] = &[true, false, true, false];
+
+/// Boolean matrix A (2x3): `[[true, false, true], [false, true, false]]`
+pub const MATRIX_BOOL_A: &[bool] = &[true, false, true, false, true, false];
+/// Boolean matrix B (2x3): `[[false, false, true], [true, true, false]]`
+pub const MATRIX_BOOL_B: &[bool] = &[false, false, true, true, true, false];
+
+/// Boolean column (3x1): `[[true], [false], [true]]`
+pub const COLUMN_BOOL: &[bool] = &[true, false, true];
+/// Boolean row (1x4): `[[true, false, true, false]]`
+pub const ROW_BOOL: &[bool] = &[true, false, true, false];
+
+/// Boolean trailing broadcast: `[true, false, true]`
+pub const TRAILING_BOOL: &[bool] = &[true, false, true];
 
 /// Asserts that two f32 slices are approximately equal.
 #[track_caller]
