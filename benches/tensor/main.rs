@@ -110,6 +110,13 @@ criterion::criterion_group!(
     binary::arithmetic::bench_div,
     binary::arithmetic::bench_rem,
     binary::arithmetic::bench_pow,
+    // Binary comparison
+    binary::comparison::bench_lt,
+    binary::comparison::bench_gt,
+    binary::comparison::bench_le,
+    binary::comparison::bench_ge,
+    binary::comparison::bench_eq,
+    binary::comparison::bench_ne,
     // Unary arithmetic
     unary::arithmetic::bench_abs,
     unary::arithmetic::bench_acos,

@@ -1,6 +1,7 @@
 //! Binary operation benchmarks.
 
 pub(crate) mod arithmetic;
+pub(crate) mod comparison;
 
 macro_rules! bench_binary_op {
     ($name:ident, $op:ident, $ty:ty) => {

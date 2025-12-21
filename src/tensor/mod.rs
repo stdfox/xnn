@@ -211,6 +211,66 @@ impl<T: NumericElement> Tensor<T> {
         self.binary_op(other, ops::div)
     }
 
+    /// Element-wise less-than comparison with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn lt(&self, other: &Self) -> Result<Tensor<bool>, Error> {
+        self.comparison_op(other, ops::lt)
+    }
+
+    /// Element-wise greater-than comparison with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn gt(&self, other: &Self) -> Result<Tensor<bool>, Error> {
+        self.comparison_op(other, ops::gt)
+    }
+
+    /// Element-wise less-than-or-equal comparison with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn le(&self, other: &Self) -> Result<Tensor<bool>, Error> {
+        self.comparison_op(other, ops::le)
+    }
+
+    /// Element-wise greater-than-or-equal comparison with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn ge(&self, other: &Self) -> Result<Tensor<bool>, Error> {
+        self.comparison_op(other, ops::ge)
+    }
+
+    /// Element-wise equality comparison with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn eq(&self, other: &Self) -> Result<Tensor<bool>, Error> {
+        self.comparison_op(other, ops::eq)
+    }
+
+    /// Element-wise inequality comparison with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn ne(&self, other: &Self) -> Result<Tensor<bool>, Error> {
+        self.comparison_op(other, ops::ne)
+    }
+
     /// Computes absolute value element-wise.
     ///
     /// # Errors
@@ -245,6 +305,40 @@ impl<T: NumericElement> Tensor<T> {
         Ok(Self {
             buffer,
             layout: self.layout.clone(),
+            ctx: self.ctx.clone(),
+        })
+    }
+
+    /// Helper for comparison operations.
+    fn comparison_op(
+        &self,
+        other: &Self,
+        op: fn(
+            &Context,
+            &Buffer<T>,
+            &Buffer<T>,
+            &Buffer<bool>,
+            &[usize],
+            &[usize],
+            &[usize],
+        ) -> Result<(), Error>,
+    ) -> Result<Tensor<bool>, Error> {
+        let (layout, a_strides, b_strides) = self.broadcast_with(other)?;
+        let buffer = self.ctx.create_buffer(layout.size())?;
+
+        op(
+            &self.ctx,
+            &self.buffer,
+            &other.buffer,
+            &buffer,
+            layout.dimensions(),
+            &a_strides,
+            &b_strides,
+        )?;
+
+        Ok(Tensor {
+            buffer,
+            layout,
             ctx: self.ctx.clone(),
         })
     }
