@@ -330,6 +330,101 @@ impl<T: IntegerElement> Tensor<T> {
 }
 
 impl<T: FloatElement> Tensor<T> {
+    /// Batched matrix multiplication with optional transposes.
+    ///
+    /// `A[..., m, k] × B[..., k, n] → C[..., m, n]`
+    ///
+    /// Batch dimensions are broadcast-compatible.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if ranks differ or are less than 2.
+    /// - [`TensorError::InvalidShape`] if inner dimensions don't match.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn matmul(
+        &self,
+        other: &Self,
+        transpose_a: bool,
+        transpose_b: bool,
+    ) -> Result<Self, Error> {
+        let a_dims = self.layout.dimensions();
+        let b_dims = other.layout.dimensions();
+        let rank = a_dims.len();
+
+        if rank < 2 || b_dims.len() < 2 {
+            return Err(
+                TensorError::InvalidShape("matmul requires tensors with rank >= 2".into()).into(),
+            );
+        }
+
+        if rank != b_dims.len() {
+            return Err(TensorError::InvalidShape(format!(
+                "matmul requires equal ranks, got {} and {}",
+                rank,
+                b_dims.len()
+            ))
+            .into());
+        }
+
+        let (a_rows, a_cols) = (a_dims[rank - 2], a_dims[rank - 1]);
+        let (b_rows, b_cols) = (b_dims[rank - 2], b_dims[rank - 1]);
+
+        let (m, a_k) = if transpose_a {
+            (a_cols, a_rows)
+        } else {
+            (a_rows, a_cols)
+        };
+        let (b_k, n) = if transpose_b {
+            (b_cols, b_rows)
+        } else {
+            (b_rows, b_cols)
+        };
+
+        if a_k != b_k {
+            return Err(TensorError::InvalidShape(format!(
+                "matmul inner dimensions don't match: {} vs {}",
+                a_k, b_k
+            ))
+            .into());
+        }
+
+        let mut out_dims: Vec<usize> = a_dims[..rank - 2]
+            .iter()
+            .zip(&b_dims[..rank - 2])
+            .map(|(&da, &db)| match (da, db) {
+                (a, b) if a == b => Ok(a),
+                (1, b) => Ok(b),
+                (a, 1) => Ok(a),
+                _ => Err(TensorError::InvalidShape(format!(
+                    "batch dimensions not broadcast-compatible: {} vs {}",
+                    da, db
+                ))),
+            })
+            .collect::<Result<_, _>>()?;
+        out_dims.extend([m, n]);
+
+        let layout = Layout::from_dimensions(&out_dims)?;
+        let buffer = self.ctx.create_buffer(layout.size())?;
+
+        ops::matmul(
+            &self.ctx,
+            &self.buffer,
+            &other.buffer,
+            &buffer,
+            a_dims,
+            b_dims,
+            &out_dims,
+            transpose_a,
+            transpose_b,
+        )?;
+
+        Ok(Self {
+            buffer,
+            layout,
+            ctx: self.ctx.clone(),
+        })
+    }
+
     /// Element-wise power with broadcasting.
     ///
     /// # Errors

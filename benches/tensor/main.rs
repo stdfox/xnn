@@ -1,6 +1,7 @@
 //! Tensor benchmarks.
 
 mod binary;
+mod matrix;
 mod unary;
 
 use std::time::Duration;
@@ -146,6 +147,10 @@ criterion::criterion_group!(
     // Binary logical
     binary::logical::bench_and,
     binary::logical::bench_or,
+    // Matrix matmul
+    matrix::matmul::bench_matmul,
+    matrix::matmul::bench_matmul_transpose,
+    matrix::matmul::bench_matmul_batched,
     // Unary arithmetic
     unary::arithmetic::bench_abs,
     unary::arithmetic::bench_acos,

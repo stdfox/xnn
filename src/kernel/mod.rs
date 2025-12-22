@@ -6,7 +6,7 @@
 //! # Categories
 //!
 //! - **activation** — `relu`, `sigmoid`.
-//! - **linalg** — `gemm`, `transpose`.
+//! - **linalg** — `transpose`.
 //! - **reduction** — `sum`.
 //! - **shape** — `broadcast_rows`.
 
@@ -16,7 +16,7 @@ mod reduction;
 mod shape;
 
 pub use activation::{relu, sigmoid};
-pub use linalg::{gemm, transpose};
+pub use linalg::transpose;
 pub use reduction::sum;
 pub use shape::broadcast_rows;
 
