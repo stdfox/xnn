@@ -284,6 +284,88 @@ impl<T: NumericElement> Tensor<T> {
     pub fn ne(&self, other: &Self) -> Result<Tensor<bool>, Error> {
         self.binary_op(other, ops::ne)
     }
+
+    /// Max reduction along specified axes.
+    ///
+    /// Output shape equals input shape with reduced axes set to 1.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if axes are invalid or duplicate.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn max_reduce(&self, axes: &[usize]) -> Result<Self, Error> {
+        self.reduce_op(axes, |ctx, input, output, dims, axes| {
+            ops::max_reduce(ctx, input, output, dims, axes)
+        })
+    }
+
+    /// Min reduction along specified axes.
+    ///
+    /// Output shape equals input shape with reduced axes set to 1.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if axes are invalid or duplicate.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn min_reduce(&self, axes: &[usize]) -> Result<Self, Error> {
+        self.reduce_op(axes, |ctx, input, output, dims, axes| {
+            ops::min_reduce(ctx, input, output, dims, axes)
+        })
+    }
+
+    /// Sum reduction along specified axes.
+    ///
+    /// Output shape equals input shape with reduced axes set to 1.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if axes are invalid or duplicate.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn sum_reduce(&self, axes: &[usize], normalize: bool) -> Result<Self, Error> {
+        self.reduce_op(axes, |ctx, input, output, dims, axes| {
+            ops::sum_reduce(ctx, input, output, dims, axes, normalize)
+        })
+    }
+
+    /// Applies a reduce operation and returns a new tensor.
+    fn reduce_op<F>(&self, axes: &[usize], op: F) -> Result<Self, Error>
+    where
+        F: FnOnce(&Context, &Buffer<T>, &Buffer<T>, &[usize], &[usize]) -> Result<(), Error>,
+    {
+        let dims = self.layout.dimensions();
+        let rank = dims.len();
+
+        let mut seen = vec![false; rank];
+        for &axis in axes {
+            if axis >= rank {
+                return Err(TensorError::InvalidShape(format!(
+                    "axis {axis} out of bounds for tensor with rank {rank}"
+                ))
+                .into());
+            }
+            if seen[axis] {
+                return Err(TensorError::InvalidShape(format!("duplicate axis {axis}")).into());
+            }
+            seen[axis] = true;
+        }
+
+        let out_dims: Vec<usize> = dims
+            .iter()
+            .enumerate()
+            .map(|(i, &d)| if seen[i] { 1 } else { d })
+            .collect();
+
+        let layout = Layout::from_dimensions(&out_dims)?;
+        let buffer = self.ctx.create_buffer(layout.size())?;
+
+        op(&self.ctx, &self.buffer, &buffer, dims, axes)?;
+
+        Ok(Self {
+            buffer,
+            layout,
+            ctx: self.ctx.clone(),
+        })
+    }
 }
 
 impl<T: SignedElement> Tensor<T> {
@@ -382,8 +464,7 @@ impl<T: FloatElement> Tensor<T> {
 
         if a_k != b_k {
             return Err(TensorError::InvalidShape(format!(
-                "matmul inner dimensions don't match: {} vs {}",
-                a_k, b_k
+                "matmul inner dimensions don't match: {a_k} vs {b_k}"
             ))
             .into());
         }
@@ -396,8 +477,7 @@ impl<T: FloatElement> Tensor<T> {
                 (1, b) => Ok(b),
                 (a, 1) => Ok(a),
                 _ => Err(TensorError::InvalidShape(format!(
-                    "batch dimensions not broadcast-compatible: {} vs {}",
-                    da, db
+                    "batch dimensions not broadcast-compatible: {da} vs {db}"
                 ))),
             })
             .collect::<Result<_, _>>()?;

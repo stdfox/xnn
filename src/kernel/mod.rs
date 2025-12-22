@@ -7,17 +7,14 @@
 //!
 //! - **activation** — `relu`, `sigmoid`.
 //! - **linalg** — `transpose`.
-//! - **reduction** — `sum`.
 //! - **shape** — `broadcast_rows`.
 
 mod activation;
 mod linalg;
-mod reduction;
 mod shape;
 
 pub use activation::{relu, sigmoid};
 pub use linalg::transpose;
-pub use reduction::sum;
 pub use shape::broadcast_rows;
 
 use crate::{Buffer, Context, Element};

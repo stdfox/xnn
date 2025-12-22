@@ -20,13 +20,21 @@ pub trait Element: Display + Copy + Clone + 'static {
     #[must_use]
     fn wgsl_type() -> &'static str;
 
-    /// Convert to native GPU representation.
+    /// Returns the WGSL literal for the minimum value.
     #[must_use]
-    fn to_native(self) -> Self::Native;
+    fn wgsl_min() -> &'static str;
+
+    /// Returns the WGSL literal for the maximum value.
+    #[must_use]
+    fn wgsl_max() -> &'static str;
 
     /// Convert from native GPU representation.
     #[must_use]
     fn from_native(native: Self::Native) -> Self;
+
+    /// Convert to native GPU representation.
+    #[must_use]
+    fn to_native(self) -> Self::Native;
 
     /// Returns the zero value.
     #[must_use]
@@ -44,13 +52,23 @@ impl Element for f32 {
     }
 
     #[inline]
-    fn to_native(self) -> Self {
-        self
+    fn wgsl_min() -> &'static str {
+        "bitcast<f32>(0xff800000u)"
+    }
+
+    #[inline]
+    fn wgsl_max() -> &'static str {
+        "bitcast<f32>(0x7f800000u)"
     }
 
     #[inline]
     fn from_native(native: Self) -> Self {
         native
+    }
+
+    #[inline]
+    fn to_native(self) -> Self {
+        self
     }
 }
 
@@ -63,13 +81,23 @@ impl Element for i32 {
     }
 
     #[inline]
-    fn to_native(self) -> Self {
-        self
+    fn wgsl_min() -> &'static str {
+        "bitcast<i32>(0x80000000u)"
+    }
+
+    #[inline]
+    fn wgsl_max() -> &'static str {
+        "bitcast<i32>(0x7fffffffu)"
     }
 
     #[inline]
     fn from_native(native: Self) -> Self {
         native
+    }
+
+    #[inline]
+    fn to_native(self) -> Self {
+        self
     }
 }
 
@@ -82,13 +110,23 @@ impl Element for u32 {
     }
 
     #[inline]
-    fn to_native(self) -> Self {
-        self
+    fn wgsl_min() -> &'static str {
+        "0u"
+    }
+
+    #[inline]
+    fn wgsl_max() -> &'static str {
+        "0xffffffffu"
     }
 
     #[inline]
     fn from_native(native: Self) -> Self {
         native
+    }
+
+    #[inline]
+    fn to_native(self) -> Self {
+        self
     }
 }
 
@@ -101,13 +139,23 @@ impl Element for bool {
     }
 
     #[inline]
-    fn to_native(self) -> u32 {
-        u32::from(self)
+    fn wgsl_min() -> &'static str {
+        "0u"
+    }
+
+    #[inline]
+    fn wgsl_max() -> &'static str {
+        "0xffffffffu"
     }
 
     #[inline]
     fn from_native(native: u32) -> Self {
         native != 0
+    }
+
+    #[inline]
+    fn to_native(self) -> u32 {
+        u32::from(self)
     }
 }
 

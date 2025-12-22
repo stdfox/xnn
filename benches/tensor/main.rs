@@ -2,6 +2,7 @@
 
 mod binary;
 mod matrix;
+mod reduce;
 mod unary;
 
 use std::time::Duration;
@@ -151,6 +152,18 @@ criterion::criterion_group!(
     matrix::matmul::bench_matmul,
     matrix::matmul::bench_matmul_transpose,
     matrix::matmul::bench_matmul_batched,
+    // Reduce max_reduce
+    reduce::max::bench_max_reduce,
+    reduce::max::bench_max_reduce_axis0,
+    reduce::max::bench_max_reduce_axis1,
+    // Reduce min_reduce
+    reduce::min::bench_min_reduce,
+    reduce::min::bench_min_reduce_axis0,
+    reduce::min::bench_min_reduce_axis1,
+    // Reduce sum_reduce
+    reduce::sum::bench_sum_reduce,
+    reduce::sum::bench_sum_reduce_axis0,
+    reduce::sum::bench_sum_reduce_axis1,
     // Unary arithmetic
     unary::arithmetic::bench_abs,
     unary::arithmetic::bench_acos,

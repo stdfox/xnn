@@ -187,6 +187,7 @@ fn compute_contiguous_strides(dims: &[usize]) -> Vec<usize> {
     strides
 }
 
+#[allow(clippy::too_many_lines)]
 fn create_shader<T: FloatElement>() -> String {
     let ty = T::wgsl_type();
     let as_size = TILE_SIZE * TILE_K_PAD;
@@ -401,8 +402,7 @@ fn dispatch<T: FloatElement>(
 
     if m_tiles > MAX_WORKGROUPS || n_tiles > MAX_WORKGROUPS {
         return Err(Error::Device(format!(
-            "matrix dimensions too large: {}x{} tiles exceed limit {}",
-            m_tiles, n_tiles, MAX_WORKGROUPS
+            "matrix dimensions too large: {m_tiles}x{n_tiles} tiles exceed limit {MAX_WORKGROUPS}"
         )));
     }
 

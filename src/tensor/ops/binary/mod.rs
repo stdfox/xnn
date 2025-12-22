@@ -101,7 +101,6 @@ fn binary_shader(a_type: &str, b_type: &str, c_type: &str, expr: &str) -> String
 }
 
 /// Dispatches a binary operation compute shader.
-#[allow(clippy::many_single_char_names)]
 #[allow(clippy::too_many_arguments)]
 fn dispatch(
     ctx: &Context,

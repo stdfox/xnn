@@ -15,7 +15,6 @@ macro_rules! impl_logical_op {
             }
         }
 
-        #[allow(clippy::many_single_char_names)]
         pub(crate) fn $name<T: LogicalElement>(
             ctx: &Context,
             a: &Buffer<T>,

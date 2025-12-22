@@ -44,28 +44,6 @@ fn bench_transpose(c: &mut Criterion) {
     group.finish();
 }
 
-fn bench_sum(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
-
-    let mut group = c.benchmark_group("kernel/sum");
-    configure(&mut group);
-
-    for &size in SIZES {
-        let len = size * size;
-        let input = ctx.create_buffer_from_slice(&random_vec(len)).unwrap();
-        let output = ctx.create_buffer::<f32>(1).unwrap();
-
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
-            bencher.iter(|| {
-                kernel::sum(&ctx, &input, &output);
-                kernel::sync(&ctx);
-            });
-        });
-    }
-
-    group.finish();
-}
-
 fn bench_relu(c: &mut Criterion) {
     let ctx = Context::try_default().unwrap();
 
@@ -134,7 +112,6 @@ fn bench_broadcast_rows(c: &mut Criterion) {
 criterion::criterion_group!(
     benches,
     bench_transpose,
-    bench_sum,
     bench_relu,
     bench_sigmoid,
     bench_broadcast_rows

@@ -16,7 +16,6 @@ macro_rules! impl_comparison_op {
             }
         }
 
-        #[allow(clippy::many_single_char_names)]
         pub(crate) fn $name<T: NumericElement>(
             ctx: &Context,
             a: &Buffer<T>,

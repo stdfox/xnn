@@ -16,7 +16,6 @@ macro_rules! impl_arithmetic_op {
             }
         }
 
-        #[allow(clippy::many_single_char_names)]
         pub(crate) fn $name<T: $trait>(
             ctx: &Context,
             a: &Buffer<T>,
