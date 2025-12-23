@@ -1,115 +1,141 @@
 //! Tests for `Tensor::or` operation.
 
-use xnn::{Context, Tensor};
+use super::test_logical_op;
 
-use super::{
-    COLUMN_BOOL, COLUMN_SHAPE, MATRIX_BOOL_A, MATRIX_BOOL_B, MATRIX_SHAPE, ROW_BOOL, ROW_SHAPE,
-    TRAILING_BOOL, VECTOR_BOOL_A, VECTOR_BOOL_B,
-};
+// vector
 
-#[test]
-fn test_or_same_shape() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<bool>::from_slice(&ctx, VECTOR_BOOL_A).unwrap();
-    let b = Tensor::<bool>::from_slice(&ctx, VECTOR_BOOL_B).unwrap();
-    let c = a.or(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![true, true, true, false]);
-}
+test_logical_op!(
+    test_or_vector,
+    or,
+    (&[4], &[true, true, false, false]),
+    (&[4], &[true, false, true, false]),
+    (&[4], &[true, true, true, false])
+);
 
-#[test]
-fn test_or_same_shape_2d() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<bool>::from_shape_slice(&ctx, MATRIX_SHAPE, MATRIX_BOOL_A).unwrap();
-    let b = Tensor::<bool>::from_shape_slice(&ctx, MATRIX_SHAPE, MATRIX_BOOL_B).unwrap();
-    let c = a.or(&b).unwrap();
-    assert_eq!(c.dimensions(), MATRIX_SHAPE);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![true, false, true, true, true, false]);
-}
+// matrix
 
-#[test]
-fn test_or_scalar_broadcast() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<bool>::from_slice(&ctx, VECTOR_BOOL_A).unwrap();
-    let b = Tensor::<bool>::constant(&ctx, &[], &[false]).unwrap();
-    let c = a.or(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![true, true, false, false]);
-}
+test_logical_op!(
+    test_or_matrix,
+    or,
+    (&[2, 3], &[true, false, true, false, true, false]),
+    (&[2, 3], &[false, false, true, true, true, false]),
+    (&[2, 3], &[true, false, true, true, true, false])
+);
 
-#[test]
-fn test_or_scalar_broadcast_true() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<bool>::from_slice(&ctx, VECTOR_BOOL_A).unwrap();
-    let b = Tensor::<bool>::constant(&ctx, &[], &[true]).unwrap();
-    let c = a.or(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![true, true, true, true]);
-}
+// scalar
 
-#[test]
-fn test_or_scalar_broadcast_reverse() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<bool>::constant(&ctx, &[], &[false]).unwrap();
-    let b = Tensor::<bool>::from_slice(&ctx, VECTOR_BOOL_A).unwrap();
-    let c = a.or(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![true, true, false, false]);
-}
+test_logical_op!(
+    test_or_scalar_true_true,
+    or,
+    (&[] as &[usize], &[true]),
+    (&[] as &[usize], &[true]),
+    (&[] as &[usize], &[true])
+);
 
-#[test]
-fn test_or_trailing_broadcast() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<bool>::from_shape_slice(&ctx, MATRIX_SHAPE, MATRIX_BOOL_A).unwrap();
-    let b = Tensor::<bool>::from_slice(&ctx, TRAILING_BOOL).unwrap();
-    let c = a.or(&b).unwrap();
-    assert_eq!(c.dimensions(), MATRIX_SHAPE);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![true, false, true, true, true, true]);
-}
+test_logical_op!(
+    test_or_scalar_true_false,
+    or,
+    (&[] as &[usize], &[true]),
+    (&[] as &[usize], &[false]),
+    (&[] as &[usize], &[true])
+);
 
-#[test]
-fn test_or_expand_both() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<bool>::from_shape_slice(&ctx, COLUMN_SHAPE, COLUMN_BOOL).unwrap();
-    let b = Tensor::<bool>::from_shape_slice(&ctx, ROW_SHAPE, ROW_BOOL).unwrap();
-    let c = a.or(&b).unwrap();
-    assert_eq!(c.dimensions(), &[3, 4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(
-        out,
-        vec![
+test_logical_op!(
+    test_or_scalar_false_true,
+    or,
+    (&[] as &[usize], &[false]),
+    (&[] as &[usize], &[true]),
+    (&[] as &[usize], &[true])
+);
+
+test_logical_op!(
+    test_or_scalar_false_false,
+    or,
+    (&[] as &[usize], &[false]),
+    (&[] as &[usize], &[false]),
+    (&[] as &[usize], &[false])
+);
+
+// broadcast
+
+test_logical_op!(
+    test_or_broadcast_multi_expand,
+    or,
+    (&[3, 1], &[true, false, true]),
+    (&[1, 4], &[true, false, true, false]),
+    (
+        &[3, 4],
+        &[
             true, true, true, true, true, false, true, false, true, true, true, true
         ]
-    );
-}
+    )
+);
+
+test_logical_op!(
+    test_or_broadcast_expand,
+    or,
+    (&[2, 1, 3], &[true, false, true, false, true, false]),
+    (
+        &[2, 2, 3],
+        &[
+            true, true, false, false, true, true, true, false, true, false, false, true
+        ]
+    ),
+    (
+        &[2, 2, 3],
+        &[
+            true, true, true, true, true, true, true, true, true, false, true, true
+        ]
+    )
+);
+
+test_logical_op!(
+    test_or_broadcast_trailing,
+    or,
+    (&[2, 3], &[true, false, true, false, true, false]),
+    (&[3], &[true, false, true]),
+    (&[2, 3], &[true, false, true, true, true, true])
+);
+
+test_logical_op!(
+    test_or_broadcast_scalar_false,
+    or,
+    (&[4], &[true, true, false, false]),
+    (&[] as &[usize], &[false]),
+    (&[4], &[true, true, false, false])
+);
+
+test_logical_op!(
+    test_or_broadcast_scalar_true,
+    or,
+    (&[4], &[true, true, false, false]),
+    (&[] as &[usize], &[true]),
+    (&[4], &[true, true, true, true])
+);
+
+test_logical_op!(
+    test_or_broadcast_scalar_reverse_false,
+    or,
+    (&[] as &[usize], &[false]),
+    (&[4], &[true, false, true, false]),
+    (&[4], &[true, false, true, false])
+);
+
+test_logical_op!(
+    test_or_broadcast_scalar_reverse_true,
+    or,
+    (&[] as &[usize], &[true]),
+    (&[4], &[true, false, true, false]),
+    (&[4], &[true, true, true, true])
+);
+
+// error
 
 #[test]
-fn test_or_incompatible_shapes() {
+fn test_or_error_incompatible_shapes() {
+    use xnn::{Context, Tensor};
     let ctx = Context::try_default().unwrap();
-    let a = Tensor::<bool>::from_slice(&ctx, COLUMN_BOOL).unwrap();
-    let b = Tensor::<bool>::from_slice(&ctx, VECTOR_BOOL_A).unwrap();
+    let a = Tensor::<bool>::from_shape_slice(&ctx, &[3], &[true, false, true]).unwrap();
+    let b = Tensor::<bool>::from_shape_slice(&ctx, &[4], &[true, false, true, false]).unwrap();
     assert!(a.or(&b).is_err());
-}
-
-#[test]
-fn test_or_scalar_to_scalar() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<bool>::constant(&ctx, &[], &[false]).unwrap();
-    let b = Tensor::<bool>::constant(&ctx, &[], &[false]).unwrap();
-    let c = a.or(&b).unwrap();
-    assert_eq!(c.dimensions(), &[] as &[usize]);
-    let out = c.to_vec().unwrap();
-    assert!(!out[0]);
-
-    let a = Tensor::<bool>::constant(&ctx, &[], &[true]).unwrap();
-    let b = Tensor::<bool>::constant(&ctx, &[], &[false]).unwrap();
-    let c = a.or(&b).unwrap();
-    let out = c.to_vec().unwrap();
-    assert!(out[0]);
 }

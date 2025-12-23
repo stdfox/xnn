@@ -2,143 +2,176 @@
 
 use xnn::{Context, Tensor};
 
-use super::{VECTOR_I32_A, VECTOR_I32_B, VECTOR_U32_A, VECTOR_U32_B};
+use super::test_arithmetic_op_integer;
+
+// vector
+
+test_arithmetic_op_integer!(
+    test_rem_i32_vector,
+    rem,
+    i32,
+    (&[4], &[10, 23, 35, 47]),
+    (&[4], &[3, 4, 5, 6]),
+    (&[4], &[1, 3, 0, 5])
+);
+
+test_arithmetic_op_integer!(
+    test_rem_u32_vector,
+    rem,
+    u32,
+    (&[4], &[10, 23, 35, 47]),
+    (&[4], &[3, 4, 5, 6]),
+    (&[4], &[1, 3, 0, 5])
+);
+
+// matrix
+
+test_arithmetic_op_integer!(
+    test_rem_i32_matrix,
+    rem,
+    i32,
+    (&[2, 3], &[10, 23, 35, 47, 58, 69]),
+    (&[2, 3], &[3, 4, 5, 6, 7, 8]),
+    (&[2, 3], &[1, 3, 0, 5, 2, 5])
+);
+
+test_arithmetic_op_integer!(
+    test_rem_u32_matrix,
+    rem,
+    u32,
+    (&[2, 3], &[10, 23, 35, 47, 58, 69]),
+    (&[2, 3], &[3, 4, 5, 6, 7, 8]),
+    (&[2, 3], &[1, 3, 0, 5, 2, 5])
+);
+
+// scalar
+
+test_arithmetic_op_integer!(
+    test_rem_i32_scalar,
+    rem,
+    i32,
+    (&[] as &[usize], &[17]),
+    (&[] as &[usize], &[5]),
+    (&[] as &[usize], &[2])
+);
+
+test_arithmetic_op_integer!(
+    test_rem_u32_scalar,
+    rem,
+    u32,
+    (&[] as &[usize], &[17]),
+    (&[] as &[usize], &[5]),
+    (&[] as &[usize], &[2])
+);
+
+// broadcast
+
+test_arithmetic_op_integer!(
+    test_rem_i32_broadcast_multi_expand,
+    rem,
+    i32,
+    (&[2, 1, 4], &[10, 23, 35, 47, 58, 69, 80, 91]),
+    (&[3, 1], &[3, 7, 11]),
+    (
+        &[2, 3, 4],
+        &[
+            1, 2, 2, 2, 3, 2, 0, 5, 10, 1, 2, 3, 1, 0, 2, 1, 2, 6, 3, 0, 3, 3, 3, 3
+        ]
+    )
+);
+
+test_arithmetic_op_integer!(
+    test_rem_u32_broadcast_multi_expand,
+    rem,
+    u32,
+    (&[2, 1, 4], &[10, 23, 35, 47, 58, 69, 80, 91]),
+    (&[3, 1], &[3, 7, 11]),
+    (
+        &[2, 3, 4],
+        &[
+            1, 2, 2, 2, 3, 2, 0, 5, 10, 1, 2, 3, 1, 0, 2, 1, 2, 6, 3, 0, 3, 3, 3, 3
+        ]
+    )
+);
+
+test_arithmetic_op_integer!(
+    test_rem_i32_broadcast_expand,
+    rem,
+    i32,
+    (&[3, 1], &[10, 23, 35]),
+    (&[1, 4], &[3, 7, 11, 13]),
+    (&[3, 4], &[1, 3, 10, 10, 2, 2, 1, 10, 2, 0, 2, 9])
+);
+
+test_arithmetic_op_integer!(
+    test_rem_u32_broadcast_expand,
+    rem,
+    u32,
+    (&[3, 1], &[10, 23, 35]),
+    (&[1, 4], &[3, 7, 11, 13]),
+    (&[3, 4], &[1, 3, 10, 10, 2, 2, 1, 10, 2, 0, 2, 9])
+);
+
+test_arithmetic_op_integer!(
+    test_rem_i32_broadcast_trailing,
+    rem,
+    i32,
+    (&[2, 3], &[10, 23, 35, 47, 58, 69]),
+    (&[3], &[3, 7, 11]),
+    (&[2, 3], &[1, 2, 2, 2, 2, 3])
+);
+
+test_arithmetic_op_integer!(
+    test_rem_u32_broadcast_trailing,
+    rem,
+    u32,
+    (&[2, 3], &[10, 23, 35, 47, 58, 69]),
+    (&[3], &[3, 7, 11]),
+    (&[2, 3], &[1, 2, 2, 2, 2, 3])
+);
+
+test_arithmetic_op_integer!(
+    test_rem_i32_broadcast_scalar,
+    rem,
+    i32,
+    (&[4], &[10, 23, 35, 47]),
+    (&[] as &[usize], &[7]),
+    (&[4], &[3, 2, 0, 5])
+);
+
+test_arithmetic_op_integer!(
+    test_rem_u32_broadcast_scalar,
+    rem,
+    u32,
+    (&[4], &[10, 23, 35, 47]),
+    (&[] as &[usize], &[7]),
+    (&[4], &[3, 2, 0, 5])
+);
+
+test_arithmetic_op_integer!(
+    test_rem_i32_broadcast_scalar_reverse,
+    rem,
+    i32,
+    (&[] as &[usize], &[100]),
+    (&[4], &[3, 7, 11, 13]),
+    (&[4], &[1, 2, 1, 9])
+);
+
+test_arithmetic_op_integer!(
+    test_rem_u32_broadcast_scalar_reverse,
+    rem,
+    u32,
+    (&[] as &[usize], &[100]),
+    (&[4], &[3, 7, 11, 13]),
+    (&[4], &[1, 2, 1, 9])
+);
+
+// error
 
 #[test]
-fn test_rem_same_shape() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<i32>::from_slice(&ctx, VECTOR_I32_B).unwrap();
-    let b = Tensor::<i32>::from_slice(&ctx, VECTOR_I32_A).unwrap();
-    let c = a.rem(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![0, 0, 0, 0]);
-}
-
-#[test]
-fn test_rem_same_shape_2d() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<i32>::from_shape_slice(&ctx, &[2, 3], &[10, 20, 30, 40, 50, 60]).unwrap();
-    let b = Tensor::<i32>::from_shape_slice(&ctx, &[2, 3], &[1, 2, 3, 4, 5, 6]).unwrap();
-    let c = a.rem(&b).unwrap();
-    assert_eq!(c.dimensions(), &[2, 3]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![0, 0, 0, 0, 0, 0]);
-}
-
-#[test]
-fn test_rem_scalar_broadcast() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<i32>::from_slice(&ctx, &[5, 6, 7, 8]).unwrap();
-    let b = Tensor::<i32>::constant(&ctx, &[], &[3]).unwrap();
-    let c = a.rem(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![2, 0, 1, 2]);
-}
-
-#[test]
-fn test_rem_scalar_broadcast_reverse() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<i32>::constant(&ctx, &[], &[10]).unwrap();
-    let b = Tensor::<i32>::from_slice(&ctx, VECTOR_I32_A).unwrap();
-    let c = a.rem(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![0, 0, 1, 2]);
-}
-
-#[test]
-fn test_rem_trailing_broadcast() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<i32>::from_shape_slice(&ctx, &[2, 3], &[10, 20, 30, 40, 50, 60]).unwrap();
-    let b = Tensor::<i32>::from_slice(&ctx, &[10, 20, 30]).unwrap();
-    let c = a.rem(&b).unwrap();
-    assert_eq!(c.dimensions(), &[2, 3]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![0, 0, 0, 0, 10, 0]);
-}
-
-#[test]
-fn test_rem_expand_both() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<i32>::from_shape_slice(&ctx, &[3, 1], &[1, 2, 3]).unwrap();
-    let b = Tensor::<i32>::from_shape_slice(&ctx, &[1, 4], &[10, 20, 30, 40]).unwrap();
-    let c = a.rem(&b).unwrap();
-    assert_eq!(c.dimensions(), &[3, 4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]);
-}
-
-#[test]
-fn test_rem_incompatible_shapes() {
+fn test_rem_error_incompatible_shapes() {
     let ctx = Context::try_default().unwrap();
     let a = Tensor::<i32>::from_slice(&ctx, &[1, 2, 3]).unwrap();
-    let b = Tensor::<i32>::from_slice(&ctx, VECTOR_I32_A).unwrap();
+    let b = Tensor::<i32>::from_slice(&ctx, &[1, 2, 3, 4]).unwrap();
     assert!(a.rem(&b).is_err());
-}
-
-#[test]
-fn test_rem_i32() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<i32>::from_slice(&ctx, VECTOR_I32_B).unwrap();
-    let b = Tensor::<i32>::from_slice(&ctx, VECTOR_I32_A).unwrap();
-    let c = a.rem(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![0, 0, 0, 0]);
-}
-
-#[test]
-fn test_rem_u32() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<u32>::from_slice(&ctx, VECTOR_U32_B).unwrap();
-    let b = Tensor::<u32>::from_slice(&ctx, VECTOR_U32_A).unwrap();
-    let c = a.rem(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![0, 0, 0, 0]);
-}
-
-#[test]
-fn test_rem_non_aligned_i32() {
-    let ctx = Context::try_default().unwrap();
-    let data_a: Vec<i32> = (1_i32..43).map(|i| i * 10 + 3).collect();
-    let data_b: Vec<i32> = (1_i32..43).map(|i| i + 1).collect();
-    let a = Tensor::<i32>::from_slice(&ctx, &data_a).unwrap();
-    let b = Tensor::<i32>::from_slice(&ctx, &data_b).unwrap();
-    let c = a.rem(&b).unwrap();
-    assert_eq!(c.dimensions(), &[42]);
-    let out = c.to_vec().unwrap();
-    let expected: Vec<i32> = data_a
-        .iter()
-        .zip(data_b.iter())
-        .map(|(x, y)| x % y)
-        .collect();
-    assert_eq!(out, expected);
-}
-
-#[test]
-fn test_rem_large() {
-    let ctx = Context::try_default().unwrap();
-    let len = 4096 * 4096;
-    let a = Tensor::<i32>::constant(&ctx, &[len], &[17]).unwrap();
-    let b = Tensor::<i32>::constant(&ctx, &[len], &[5]).unwrap();
-    let c = a.rem(&b).unwrap();
-    assert_eq!(c.dimensions(), &[len]);
-    let out = c.to_vec().unwrap();
-    for val in &out[..100] {
-        assert_eq!(*val, 2);
-    }
-}
-
-#[test]
-fn test_rem_scalar_to_scalar() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<i32>::constant(&ctx, &[], &[10]).unwrap();
-    let b = Tensor::<i32>::constant(&ctx, &[], &[3]).unwrap();
-    let c = a.rem(&b).unwrap();
-    assert_eq!(c.dimensions(), &[] as &[usize]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out[0], 1);
 }

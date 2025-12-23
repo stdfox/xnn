@@ -225,6 +225,26 @@ impl<T: NumericElement> Tensor<T> {
         self.binary_op(other, ops::div)
     }
 
+    /// Element-wise maximum with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn max(&self, other: &Self) -> Result<Self, Error> {
+        self.binary_op(other, ops::max)
+    }
+
+    /// Element-wise minimum with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn min(&self, other: &Self) -> Result<Self, Error> {
+        self.binary_op(other, ops::min)
+    }
+
     /// Element-wise less-than comparison with broadcasting.
     ///
     /// # Errors
@@ -678,6 +698,15 @@ impl<T: FloatElement> Tensor<T> {
         self.unary_op(ops::log)
     }
 
+    /// Computes base-2 logarithm element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn log2(&self) -> Result<Self, Error> {
+        self.unary_op(ops::log2)
+    }
+
     /// Computes reciprocal (1/x) element-wise.
     ///
     /// # Errors
@@ -696,6 +725,24 @@ impl<T: FloatElement> Tensor<T> {
         self.unary_op(ops::round)
     }
 
+    /// Computes reciprocal of square (1/x²) element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn rsqr(&self) -> Result<Self, Error> {
+        self.unary_op(ops::rsqr)
+    }
+
+    /// Computes reciprocal of square root (1/√x) element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn rsqrt(&self) -> Result<Self, Error> {
+        self.unary_op(ops::rsqrt)
+    }
+
     /// Computes sine element-wise.
     ///
     /// # Errors
@@ -712,6 +759,24 @@ impl<T: FloatElement> Tensor<T> {
     /// - [`Error::Device`] if operation fails.
     pub fn sinh(&self) -> Result<Self, Error> {
         self.unary_op(ops::sinh)
+    }
+
+    /// Computes square (x²) element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn sqr(&self) -> Result<Self, Error> {
+        self.unary_op(ops::sqr)
+    }
+
+    /// Computes square root element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn sqrt(&self) -> Result<Self, Error> {
+        self.unary_op(ops::sqrt)
     }
 
     /// Computes tangent element-wise.

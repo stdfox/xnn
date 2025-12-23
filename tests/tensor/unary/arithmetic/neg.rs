@@ -1,160 +1,52 @@
 //! Tests for `Tensor::neg` operation.
 
-use std::f32::consts::PI;
+use super::{test_unary_op_float, test_unary_op_integer};
 
-use approx::assert_relative_eq;
-use xnn::{Context, Tensor};
+// f32
 
-#[test]
-fn test_neg_f32_positive() {
-    let ctx = Context::try_default().unwrap();
-    let data = vec![1.0, 2.0, 3.0, 4.0];
-    let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
-    let result = t.neg().unwrap();
-    assert_eq!(result.dimensions(), t.dimensions());
-    let out = result.to_vec().unwrap();
-    let expected = [-1.0, -2.0, -3.0, -4.0];
-    for (a, b) in out.iter().zip(expected.iter()) {
-        assert_relative_eq!(a, b, epsilon = 1e-4);
-    }
-}
+test_unary_op_float!(
+    test_neg_f32_vector,
+    neg,
+    (&[4], &[1.0, -2.0, 3.0, -4.0]),
+    (&[4], &[-1.0, 2.0, -3.0, 4.0])
+);
 
-#[test]
-fn test_neg_f32_negative() {
-    let ctx = Context::try_default().unwrap();
-    let data = vec![-1.0, -2.0, -3.0, -4.0];
-    let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
-    let result = t.neg().unwrap();
-    assert_eq!(result.dimensions(), t.dimensions());
-    let out = result.to_vec().unwrap();
-    let expected = [1.0, 2.0, 3.0, 4.0];
-    for (a, b) in out.iter().zip(expected.iter()) {
-        assert_relative_eq!(a, b, epsilon = 1e-4);
-    }
-}
+test_unary_op_float!(
+    test_neg_f32_matrix,
+    neg,
+    (&[2, 3], &[-1.0, 2.0, -3.0, 4.0, -5.0, 6.0]),
+    (&[2, 3], &[1.0, -2.0, 3.0, -4.0, 5.0, -6.0])
+);
 
-#[test]
-fn test_neg_f32_mixed() {
-    let ctx = Context::try_default().unwrap();
-    let data = vec![-1.0, 2.0, -3.0, 4.0];
-    let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
-    let result = t.neg().unwrap();
-    assert_eq!(result.dimensions(), t.dimensions());
-    let out = result.to_vec().unwrap();
-    let expected = [1.0, -2.0, 3.0, -4.0];
-    for (a, b) in out.iter().zip(expected.iter()) {
-        assert_relative_eq!(a, b, epsilon = 1e-4);
-    }
-}
+test_unary_op_float!(
+    test_neg_f32_scalar,
+    neg,
+    (&[] as &[usize], &[42.0]),
+    (&[] as &[usize], &[-42.0])
+);
 
-#[test]
-fn test_neg_f32_zero() {
-    let ctx = Context::try_default().unwrap();
-    let data = vec![0.0, -0.0];
-    let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
-    let result = t.neg().unwrap();
-    assert_eq!(result.dimensions(), t.dimensions());
-    assert_relative_eq!(result.to_vec().unwrap()[0], 0.0, epsilon = 1e-4);
-    assert_relative_eq!(result.to_vec().unwrap()[1], 0.0, epsilon = 1e-4);
-}
+// i32
 
-#[test]
-fn test_neg_i32_positive() {
-    let ctx = Context::try_default().unwrap();
-    let data = vec![1, 2, 3, 4];
-    let t = Tensor::<i32>::from_slice(&ctx, &data).unwrap();
-    let result = t.neg().unwrap();
-    assert_eq!(result.dimensions(), t.dimensions());
-    assert_eq!(result.to_vec().unwrap(), vec![-1, -2, -3, -4]);
-}
+test_unary_op_integer!(
+    test_neg_i32_vector,
+    neg,
+    i32,
+    (&[4], &[1, -2, 3, -4]),
+    (&[4], &[-1, 2, -3, 4])
+);
 
-#[test]
-fn test_neg_i32_negative() {
-    let ctx = Context::try_default().unwrap();
-    let data = vec![-1, -2, -3, -4];
-    let t = Tensor::<i32>::from_slice(&ctx, &data).unwrap();
-    let result = t.neg().unwrap();
-    assert_eq!(result.dimensions(), t.dimensions());
-    assert_eq!(result.to_vec().unwrap(), vec![1, 2, 3, 4]);
-}
+test_unary_op_integer!(
+    test_neg_i32_matrix,
+    neg,
+    i32,
+    (&[2, 3], &[-1, 2, -3, 4, -5, 6]),
+    (&[2, 3], &[1, -2, 3, -4, 5, -6])
+);
 
-#[test]
-fn test_neg_i32_mixed() {
-    let ctx = Context::try_default().unwrap();
-    let data = vec![-1, 2, -3, 4];
-    let t = Tensor::<i32>::from_slice(&ctx, &data).unwrap();
-    let result = t.neg().unwrap();
-    assert_eq!(result.dimensions(), t.dimensions());
-    assert_eq!(result.to_vec().unwrap(), vec![1, -2, 3, -4]);
-}
-
-#[test]
-fn test_neg_i32_zero() {
-    let ctx = Context::try_default().unwrap();
-    let data = vec![0, 0, 0, 0];
-    let t = Tensor::<i32>::from_slice(&ctx, &data).unwrap();
-    let result = t.neg().unwrap();
-    assert_eq!(result.dimensions(), t.dimensions());
-    assert_eq!(result.to_vec().unwrap(), vec![0, 0, 0, 0]);
-}
-
-#[test]
-fn test_neg_2d() {
-    let ctx = Context::try_default().unwrap();
-    let data = vec![-1.0, 2.0, -3.0, 4.0, -5.0, 6.0];
-    let t = Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &data).unwrap();
-    let result = t.neg().unwrap();
-    assert_eq!(result.dimensions(), &[2, 3]);
-    let out = result.to_vec().unwrap();
-    let expected = [1.0, -2.0, 3.0, -4.0, 5.0, -6.0];
-    for (a, b) in out.iter().zip(expected.iter()) {
-        assert_relative_eq!(a, b, epsilon = 1e-4);
-    }
-}
-
-#[test]
-fn test_neg_non_aligned() {
-    let ctx = Context::try_default().unwrap();
-    let data: Vec<f32> = (-21_i8..21).map(f32::from).collect();
-    let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
-    let result = t.neg().unwrap();
-    assert_eq!(result.dimensions(), &[42]);
-    let out = result.to_vec().unwrap();
-    let expected: Vec<f32> = data.iter().map(|x| -x).collect();
-    for (a, b) in out.iter().zip(expected.iter()) {
-        assert_relative_eq!(a, b, epsilon = 1e-4);
-    }
-}
-
-#[test]
-fn test_neg_large() {
-    let ctx = Context::try_default().unwrap();
-    let len = 4096 * 4096;
-    let t = Tensor::<f32>::constant(&ctx, &[len], &[PI]).unwrap();
-    let result = t.neg().unwrap();
-    assert_eq!(result.dimensions(), &[len]);
-    for val in &result.to_vec().unwrap() {
-        assert_relative_eq!(*val, -PI, epsilon = 1e-4);
-    }
-}
-
-#[test]
-fn test_neg_scalar() {
-    let ctx = Context::try_default().unwrap();
-    let t = Tensor::<f32>::constant(&ctx, &[], &[42.0]).unwrap();
-    let result = t.neg().unwrap();
-    assert_eq!(result.dimensions(), &[] as &[usize]);
-    assert_relative_eq!(result.to_vec().unwrap()[0], -42.0, epsilon = 1e-4);
-}
-
-#[test]
-fn test_neg_double() {
-    let ctx = Context::try_default().unwrap();
-    let data = vec![1.0, -2.0, 3.0, -4.0];
-    let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
-    let result = t.neg().unwrap().neg().unwrap();
-    assert_eq!(result.dimensions(), t.dimensions());
-    for (a, b) in result.to_vec().unwrap().iter().zip(data.iter()) {
-        assert_relative_eq!(a, b, epsilon = 1e-4);
-    }
-}
+test_unary_op_integer!(
+    test_neg_i32_scalar,
+    neg,
+    i32,
+    (&[] as &[usize], &[42]),
+    (&[] as &[usize], &[-42])
+);

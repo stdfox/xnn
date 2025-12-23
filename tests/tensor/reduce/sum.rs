@@ -189,6 +189,7 @@ fn test_sum_reduce_u32() {
 }
 
 #[test]
+#[allow(clippy::cast_precision_loss)]
 fn test_sum_reduce_large() {
     let ctx = Context::try_default().unwrap();
 
@@ -201,9 +202,9 @@ fn test_sum_reduce_large() {
     assert_eq!(result.dimensions(), &[size, 1]);
 
     let out = result.to_vec().unwrap();
-    for row in 0..size {
+    for (row, &val) in out.iter().enumerate().take(size) {
         let expected: f32 = (0..size).map(|col| (row * size + col) as f32).sum();
-        assert_relative_eq!(out[row], expected, epsilon = expected * 1e-4);
+        assert_relative_eq!(val, expected, epsilon = expected * 1e-4);
     }
 }
 

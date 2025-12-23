@@ -14,7 +14,6 @@ fn assert_approx(actual: &[f32], expected: &[f32], epsilon: f32) {
 fn test_min_reduce_2d_axis0() {
     let ctx = Context::try_default().unwrap();
 
-    // [[1, 2, 3], [4, 5, 6]] -> min axis 0 -> [1, 2, 3]
     let a =
         Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
     let result = a.min_reduce(&[0]).unwrap();
@@ -27,7 +26,6 @@ fn test_min_reduce_2d_axis0() {
 fn test_min_reduce_2d_axis1() {
     let ctx = Context::try_default().unwrap();
 
-    // [[1, 2, 3], [4, 5, 6]] -> min axis 1 -> [1, 4]
     let a =
         Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
     let result = a.min_reduce(&[1]).unwrap();
@@ -121,6 +119,7 @@ fn test_min_reduce_u32() {
 }
 
 #[test]
+#[allow(clippy::cast_precision_loss)]
 fn test_min_reduce_large() {
     let ctx = Context::try_default().unwrap();
 
@@ -133,9 +132,9 @@ fn test_min_reduce_large() {
     assert_eq!(result.dimensions(), &[size, 1]);
 
     let out = result.to_vec().unwrap();
-    for row in 0..size {
+    for (row, &val) in out.iter().enumerate().take(size) {
         let expected = (row * size) as f32;
-        assert_relative_eq!(out[row], expected, epsilon = 1e-4);
+        assert_relative_eq!(val, expected, epsilon = 1e-4);
     }
 }
 

@@ -1,154 +1,262 @@
 //! Tests for `Tensor::mul` operation.
 
-use approx::assert_relative_eq;
 use xnn::{Context, Tensor};
 
-use super::assert_vec_relative_eq;
-use super::{
-    COLUMN, COLUMN_SHAPE, MATRIX_A, MATRIX_B, MATRIX_SHAPE, ROW, ROW_SHAPE, SCALAR, TRAILING,
-    VECTOR_A, VECTOR_B, VECTOR_I32_A, VECTOR_I32_B, VECTOR_U32_A, VECTOR_U32_B,
-};
+use super::{test_arithmetic_op_float, test_arithmetic_op_integer};
 
-#[test]
-fn test_mul_same_shape() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::from_slice(&ctx, VECTOR_A).unwrap();
-    let b = Tensor::<f32>::from_slice(&ctx, VECTOR_B).unwrap();
-    let c = a.mul(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_vec_relative_eq(&out, &[5.0, 12.0, 21.0, 32.0]);
-}
+// vector
 
-#[test]
-fn test_mul_same_shape_2d() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::from_shape_slice(&ctx, MATRIX_SHAPE, MATRIX_A).unwrap();
-    let b = Tensor::<f32>::from_shape_slice(&ctx, MATRIX_SHAPE, MATRIX_B).unwrap();
-    let c = a.mul(&b).unwrap();
-    assert_eq!(c.dimensions(), MATRIX_SHAPE);
-    let out = c.to_vec().unwrap();
-    assert_vec_relative_eq(&out, &[10.0, 40.0, 90.0, 160.0, 250.0, 360.0]);
-}
+test_arithmetic_op_float!(
+    test_mul_f32_vector,
+    mul,
+    f32,
+    (&[4], &[1.0, 2.0, 3.0, 4.0]),
+    (&[4], &[5.0, 6.0, 7.0, 8.0]),
+    (&[4], &[5.0, 12.0, 21.0, 32.0])
+);
 
-#[test]
-fn test_mul_scalar_broadcast() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::from_slice(&ctx, VECTOR_A).unwrap();
-    let b = Tensor::<f32>::constant(&ctx, &[], &[SCALAR]).unwrap();
-    let c = a.mul(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_vec_relative_eq(&out, &[10.0, 20.0, 30.0, 40.0]);
-}
+test_arithmetic_op_integer!(
+    test_mul_i32_vector,
+    mul,
+    i32,
+    (&[4], &[1, 2, 3, 4]),
+    (&[4], &[10, 20, 30, 40]),
+    (&[4], &[10, 40, 90, 160])
+);
 
-#[test]
-fn test_mul_scalar_broadcast_reverse() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::constant(&ctx, &[], &[SCALAR]).unwrap();
-    let b = Tensor::<f32>::from_slice(&ctx, VECTOR_A).unwrap();
-    let c = a.mul(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_vec_relative_eq(&out, &[10.0, 20.0, 30.0, 40.0]);
-}
+test_arithmetic_op_integer!(
+    test_mul_u32_vector,
+    mul,
+    u32,
+    (&[4], &[1, 2, 3, 4]),
+    (&[4], &[10, 20, 30, 40]),
+    (&[4], &[10, 40, 90, 160])
+);
 
-#[test]
-fn test_mul_trailing_broadcast() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::from_shape_slice(&ctx, MATRIX_SHAPE, MATRIX_A).unwrap();
-    let b = Tensor::<f32>::from_slice(&ctx, TRAILING).unwrap();
-    let c = a.mul(&b).unwrap();
-    assert_eq!(c.dimensions(), MATRIX_SHAPE);
-    let out = c.to_vec().unwrap();
-    assert_vec_relative_eq(&out, &[10.0, 40.0, 90.0, 40.0, 100.0, 180.0]);
-}
+// matrix
 
-#[test]
-fn test_mul_expand_both() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::from_shape_slice(&ctx, COLUMN_SHAPE, COLUMN).unwrap();
-    let b = Tensor::<f32>::from_shape_slice(&ctx, ROW_SHAPE, ROW).unwrap();
-    let c = a.mul(&b).unwrap();
-    assert_eq!(c.dimensions(), &[3, 4]);
-    let out = c.to_vec().unwrap();
-    assert_vec_relative_eq(
-        &out,
+test_arithmetic_op_float!(
+    test_mul_f32_matrix,
+    mul,
+    f32,
+    (&[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+    (&[2, 3], &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]),
+    (&[2, 3], &[10.0, 40.0, 90.0, 160.0, 250.0, 360.0])
+);
+
+test_arithmetic_op_integer!(
+    test_mul_i32_matrix,
+    mul,
+    i32,
+    (&[2, 3], &[1, 2, 3, 4, 5, 6]),
+    (&[2, 3], &[10, 20, 30, 40, 50, 60]),
+    (&[2, 3], &[10, 40, 90, 160, 250, 360])
+);
+
+test_arithmetic_op_integer!(
+    test_mul_u32_matrix,
+    mul,
+    u32,
+    (&[2, 3], &[1, 2, 3, 4, 5, 6]),
+    (&[2, 3], &[10, 20, 30, 40, 50, 60]),
+    (&[2, 3], &[10, 40, 90, 160, 250, 360])
+);
+
+// scalar
+
+test_arithmetic_op_float!(
+    test_mul_f32_scalar,
+    mul,
+    f32,
+    (&[] as &[usize], &[5.0]),
+    (&[] as &[usize], &[3.0]),
+    (&[] as &[usize], &[15.0])
+);
+
+test_arithmetic_op_integer!(
+    test_mul_i32_scalar,
+    mul,
+    i32,
+    (&[] as &[usize], &[5]),
+    (&[] as &[usize], &[3]),
+    (&[] as &[usize], &[15])
+);
+
+test_arithmetic_op_integer!(
+    test_mul_u32_scalar,
+    mul,
+    u32,
+    (&[] as &[usize], &[5]),
+    (&[] as &[usize], &[3]),
+    (&[] as &[usize], &[15])
+);
+
+// broadcast
+
+test_arithmetic_op_float!(
+    test_mul_f32_broadcast_multi_expand,
+    mul,
+    f32,
+    (&[2, 1, 4], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]),
+    (&[3, 1], &[10.0, 20.0, 30.0]),
+    (
+        &[2, 3, 4],
         &[
-            10.0, 20.0, 30.0, 40.0, 20.0, 40.0, 60.0, 80.0, 30.0, 60.0, 90.0, 120.0,
-        ],
-    );
-}
+            10.0, 20.0, 30.0, 40.0, 20.0, 40.0, 60.0, 80.0, 30.0, 60.0, 90.0, 120.0, 50.0, 60.0,
+            70.0, 80.0, 100.0, 120.0, 140.0, 160.0, 150.0, 180.0, 210.0, 240.0
+        ]
+    )
+);
+
+test_arithmetic_op_integer!(
+    test_mul_i32_broadcast_multi_expand,
+    mul,
+    i32,
+    (&[2, 1, 4], &[1, 2, 3, 4, 5, 6, 7, 8]),
+    (&[3, 1], &[10, 20, 30]),
+    (
+        &[2, 3, 4],
+        &[
+            10, 20, 30, 40, 20, 40, 60, 80, 30, 60, 90, 120, 50, 60, 70, 80, 100, 120, 140, 160,
+            150, 180, 210, 240
+        ]
+    )
+);
+
+test_arithmetic_op_integer!(
+    test_mul_u32_broadcast_multi_expand,
+    mul,
+    u32,
+    (&[2, 1, 4], &[1, 2, 3, 4, 5, 6, 7, 8]),
+    (&[3, 1], &[10, 20, 30]),
+    (
+        &[2, 3, 4],
+        &[
+            10, 20, 30, 40, 20, 40, 60, 80, 30, 60, 90, 120, 50, 60, 70, 80, 100, 120, 140, 160,
+            150, 180, 210, 240
+        ]
+    )
+);
+
+test_arithmetic_op_float!(
+    test_mul_f32_broadcast_expand,
+    mul,
+    f32,
+    (&[3, 1], &[1.0, 2.0, 3.0]),
+    (&[1, 4], &[10.0, 20.0, 30.0, 40.0]),
+    (
+        &[3, 4],
+        &[
+            10.0, 20.0, 30.0, 40.0, 20.0, 40.0, 60.0, 80.0, 30.0, 60.0, 90.0, 120.0
+        ]
+    )
+);
+
+test_arithmetic_op_integer!(
+    test_mul_i32_broadcast_expand,
+    mul,
+    i32,
+    (&[3, 1], &[1, 2, 3]),
+    (&[1, 4], &[10, 20, 30, 40]),
+    (&[3, 4], &[10, 20, 30, 40, 20, 40, 60, 80, 30, 60, 90, 120])
+);
+
+test_arithmetic_op_integer!(
+    test_mul_u32_broadcast_expand,
+    mul,
+    u32,
+    (&[3, 1], &[1, 2, 3]),
+    (&[1, 4], &[10, 20, 30, 40]),
+    (&[3, 4], &[10, 20, 30, 40, 20, 40, 60, 80, 30, 60, 90, 120])
+);
+
+test_arithmetic_op_float!(
+    test_mul_f32_broadcast_trailing,
+    mul,
+    f32,
+    (&[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+    (&[3], &[10.0, 20.0, 30.0]),
+    (&[2, 3], &[10.0, 40.0, 90.0, 40.0, 100.0, 180.0])
+);
+
+test_arithmetic_op_integer!(
+    test_mul_i32_broadcast_trailing,
+    mul,
+    i32,
+    (&[2, 3], &[1, 2, 3, 4, 5, 6]),
+    (&[3], &[10, 20, 30]),
+    (&[2, 3], &[10, 40, 90, 40, 100, 180])
+);
+
+test_arithmetic_op_integer!(
+    test_mul_u32_broadcast_trailing,
+    mul,
+    u32,
+    (&[2, 3], &[1, 2, 3, 4, 5, 6]),
+    (&[3], &[10, 20, 30]),
+    (&[2, 3], &[10, 40, 90, 40, 100, 180])
+);
+
+test_arithmetic_op_float!(
+    test_mul_f32_broadcast_scalar,
+    mul,
+    f32,
+    (&[4], &[1.0, 2.0, 3.0, 4.0]),
+    (&[] as &[usize], &[10.0]),
+    (&[4], &[10.0, 20.0, 30.0, 40.0])
+);
+
+test_arithmetic_op_integer!(
+    test_mul_i32_broadcast_scalar,
+    mul,
+    i32,
+    (&[4], &[1, 2, 3, 4]),
+    (&[] as &[usize], &[10]),
+    (&[4], &[10, 20, 30, 40])
+);
+
+test_arithmetic_op_integer!(
+    test_mul_u32_broadcast_scalar,
+    mul,
+    u32,
+    (&[4], &[1, 2, 3, 4]),
+    (&[] as &[usize], &[10]),
+    (&[4], &[10, 20, 30, 40])
+);
+
+test_arithmetic_op_float!(
+    test_mul_f32_broadcast_scalar_reverse,
+    mul,
+    f32,
+    (&[] as &[usize], &[10.0]),
+    (&[4], &[1.0, 2.0, 3.0, 4.0]),
+    (&[4], &[10.0, 20.0, 30.0, 40.0])
+);
+
+test_arithmetic_op_integer!(
+    test_mul_i32_broadcast_scalar_reverse,
+    mul,
+    i32,
+    (&[] as &[usize], &[10]),
+    (&[4], &[1, 2, 3, 4]),
+    (&[4], &[10, 20, 30, 40])
+);
+
+test_arithmetic_op_integer!(
+    test_mul_u32_broadcast_scalar_reverse,
+    mul,
+    u32,
+    (&[] as &[usize], &[10]),
+    (&[4], &[1, 2, 3, 4]),
+    (&[4], &[10, 20, 30, 40])
+);
+
+// error
 
 #[test]
-fn test_mul_incompatible_shapes() {
+fn test_mul_error_incompatible_shapes() {
     let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::from_slice(&ctx, COLUMN).unwrap();
-    let b = Tensor::<f32>::from_slice(&ctx, VECTOR_A).unwrap();
+    let a = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0, 3.0]).unwrap();
+    let b = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0, 3.0, 4.0]).unwrap();
     assert!(a.mul(&b).is_err());
-}
-
-#[test]
-fn test_mul_i32() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<i32>::from_slice(&ctx, VECTOR_I32_A).unwrap();
-    let b = Tensor::<i32>::from_slice(&ctx, VECTOR_I32_B).unwrap();
-    let c = a.mul(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![10, 40, 90, 160]);
-}
-
-#[test]
-fn test_mul_u32() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<u32>::from_slice(&ctx, VECTOR_U32_A).unwrap();
-    let b = Tensor::<u32>::from_slice(&ctx, VECTOR_U32_B).unwrap();
-    let c = a.mul(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![10, 40, 90, 160]);
-}
-
-#[test]
-fn test_mul_non_aligned() {
-    let ctx = Context::try_default().unwrap();
-    let data_a: Vec<f32> = (1_u8..43).map(f32::from).collect();
-    let data_b: Vec<f32> = (1_u8..43).map(|i| f32::from(i) * 0.1).collect();
-    let a = Tensor::<f32>::from_slice(&ctx, &data_a).unwrap();
-    let b = Tensor::<f32>::from_slice(&ctx, &data_b).unwrap();
-    let c = a.mul(&b).unwrap();
-    assert_eq!(c.dimensions(), &[42]);
-    let out = c.to_vec().unwrap();
-    let expected: Vec<f32> = data_a
-        .iter()
-        .zip(data_b.iter())
-        .map(|(x, y)| x * y)
-        .collect();
-    assert_vec_relative_eq(&out, &expected);
-}
-
-#[test]
-fn test_mul_large() {
-    let ctx = Context::try_default().unwrap();
-    let len = 4096 * 4096;
-    let a = Tensor::<f32>::constant(&ctx, &[len], &[2.0]).unwrap();
-    let b = Tensor::<f32>::constant(&ctx, &[len], &[3.0]).unwrap();
-    let c = a.mul(&b).unwrap();
-    assert_eq!(c.dimensions(), &[len]);
-    let out = c.to_vec().unwrap();
-    for val in &out[..100] {
-        assert_relative_eq!(*val, 6.0, epsilon = 1e-4);
-    }
-}
-
-#[test]
-fn test_mul_scalar_to_scalar() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::constant(&ctx, &[], &[SCALAR]).unwrap();
-    let b = Tensor::<f32>::constant(&ctx, &[], &[3.0]).unwrap();
-    let c = a.mul(&b).unwrap();
-    assert_eq!(c.dimensions(), &[] as &[usize]);
-    let out = c.to_vec().unwrap();
-    assert_relative_eq!(out[0], 30.0, epsilon = 1e-4);
 }

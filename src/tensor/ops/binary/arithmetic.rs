@@ -54,8 +54,10 @@ macro_rules! impl_arithmetic_op {
 }
 
 impl_arithmetic_op!(add, "a[a_idx] + b[b_idx]", Add, NumericElement);
-impl_arithmetic_op!(sub, "a[a_idx] - b[b_idx]", Sub, NumericElement);
-impl_arithmetic_op!(mul, "a[a_idx] * b[b_idx]", Mul, NumericElement);
 impl_arithmetic_op!(div, "a[a_idx] / b[b_idx]", Div, NumericElement);
+impl_arithmetic_op!(max, "max(a[a_idx], b[b_idx])", Max, NumericElement);
+impl_arithmetic_op!(min, "min(a[a_idx], b[b_idx])", Min, NumericElement);
+impl_arithmetic_op!(mul, "a[a_idx] * b[b_idx]", Mul, NumericElement);
+impl_arithmetic_op!(sub, "a[a_idx] - b[b_idx]", Sub, NumericElement);
 impl_arithmetic_op!(rem, "a[a_idx] % b[b_idx]", Rem, IntegerElement);
 impl_arithmetic_op!(pow, "pow(a[a_idx], b[b_idx])", Pow, FloatElement);

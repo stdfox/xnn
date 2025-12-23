@@ -70,8 +70,7 @@ impl Model {
 
 /// Compute MSE loss from diff tensor.
 fn compute_loss(diff: &Tensor<f32>, n: f32) -> Result<f32, Error> {
-    let sq = diff.mul(diff)?;
-    let sum = sq.sum_reduce(&[0], false)?;
+    let sum = diff.sqr()?.sum_reduce(&[0], false)?;
     Ok(sum.to_vec()?[0] / n)
 }
 

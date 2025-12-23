@@ -1,154 +1,265 @@
 //! Tests for `Tensor::sub` operation.
 
-use approx::assert_relative_eq;
 use xnn::{Context, Tensor};
 
-use super::assert_vec_relative_eq;
-use super::{
-    COLUMN, COLUMN_SHAPE, MATRIX_A, MATRIX_B, MATRIX_SHAPE, ROW, ROW_SHAPE, SCALAR, TRAILING,
-    VECTOR_A, VECTOR_B, VECTOR_I32_A, VECTOR_I32_B, VECTOR_U32_A, VECTOR_U32_B,
-};
+use super::{test_arithmetic_op_float, test_arithmetic_op_integer};
 
-#[test]
-fn test_sub_same_shape() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::from_slice(&ctx, VECTOR_B).unwrap();
-    let b = Tensor::<f32>::from_slice(&ctx, VECTOR_A).unwrap();
-    let c = a.sub(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_vec_relative_eq(&out, &[4.0, 4.0, 4.0, 4.0]);
-}
+// vector
 
-#[test]
-fn test_sub_same_shape_2d() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::from_shape_slice(&ctx, MATRIX_SHAPE, MATRIX_B).unwrap();
-    let b = Tensor::<f32>::from_shape_slice(&ctx, MATRIX_SHAPE, MATRIX_A).unwrap();
-    let c = a.sub(&b).unwrap();
-    assert_eq!(c.dimensions(), MATRIX_SHAPE);
-    let out = c.to_vec().unwrap();
-    assert_vec_relative_eq(&out, &[9.0, 18.0, 27.0, 36.0, 45.0, 54.0]);
-}
+test_arithmetic_op_float!(
+    test_sub_f32_vector,
+    sub,
+    f32,
+    (&[4], &[5.0, 6.0, 7.0, 8.0]),
+    (&[4], &[1.0, 2.0, 3.0, 4.0]),
+    (&[4], &[4.0, 4.0, 4.0, 4.0])
+);
 
-#[test]
-fn test_sub_scalar_broadcast() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::from_slice(&ctx, VECTOR_B).unwrap();
-    let b = Tensor::<f32>::constant(&ctx, &[], &[SCALAR]).unwrap();
-    let c = a.sub(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_vec_relative_eq(&out, &[-5.0, -4.0, -3.0, -2.0]);
-}
+test_arithmetic_op_integer!(
+    test_sub_i32_vector,
+    sub,
+    i32,
+    (&[4], &[10, 20, 30, 40]),
+    (&[4], &[1, 2, 3, 4]),
+    (&[4], &[9, 18, 27, 36])
+);
 
-#[test]
-fn test_sub_scalar_broadcast_reverse() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::constant(&ctx, &[], &[SCALAR]).unwrap();
-    let b = Tensor::<f32>::from_slice(&ctx, VECTOR_A).unwrap();
-    let c = a.sub(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_vec_relative_eq(&out, &[9.0, 8.0, 7.0, 6.0]);
-}
+test_arithmetic_op_integer!(
+    test_sub_u32_vector,
+    sub,
+    u32,
+    (&[4], &[10, 20, 30, 40]),
+    (&[4], &[1, 2, 3, 4]),
+    (&[4], &[9, 18, 27, 36])
+);
 
-#[test]
-fn test_sub_trailing_broadcast() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::from_shape_slice(&ctx, MATRIX_SHAPE, MATRIX_B).unwrap();
-    let b = Tensor::<f32>::from_slice(&ctx, TRAILING).unwrap();
-    let c = a.sub(&b).unwrap();
-    assert_eq!(c.dimensions(), MATRIX_SHAPE);
-    let out = c.to_vec().unwrap();
-    assert_vec_relative_eq(&out, &[0.0, 0.0, 0.0, 30.0, 30.0, 30.0]);
-}
+// matrix
 
-#[test]
-fn test_sub_expand_both() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::from_shape_slice(&ctx, COLUMN_SHAPE, COLUMN).unwrap();
-    let b = Tensor::<f32>::from_shape_slice(&ctx, ROW_SHAPE, ROW).unwrap();
-    let c = a.sub(&b).unwrap();
-    assert_eq!(c.dimensions(), &[3, 4]);
-    let out = c.to_vec().unwrap();
-    assert_vec_relative_eq(
-        &out,
+test_arithmetic_op_float!(
+    test_sub_f32_matrix,
+    sub,
+    f32,
+    (&[2, 3], &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]),
+    (&[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+    (&[2, 3], &[9.0, 18.0, 27.0, 36.0, 45.0, 54.0])
+);
+
+test_arithmetic_op_integer!(
+    test_sub_i32_matrix,
+    sub,
+    i32,
+    (&[2, 3], &[10, 20, 30, 40, 50, 60]),
+    (&[2, 3], &[1, 2, 3, 4, 5, 6]),
+    (&[2, 3], &[9, 18, 27, 36, 45, 54])
+);
+
+test_arithmetic_op_integer!(
+    test_sub_u32_matrix,
+    sub,
+    u32,
+    (&[2, 3], &[10, 20, 30, 40, 50, 60]),
+    (&[2, 3], &[1, 2, 3, 4, 5, 6]),
+    (&[2, 3], &[9, 18, 27, 36, 45, 54])
+);
+
+// scalar
+
+test_arithmetic_op_float!(
+    test_sub_f32_scalar,
+    sub,
+    f32,
+    (&[] as &[usize], &[10.0]),
+    (&[] as &[usize], &[3.0]),
+    (&[] as &[usize], &[7.0])
+);
+
+test_arithmetic_op_integer!(
+    test_sub_i32_scalar,
+    sub,
+    i32,
+    (&[] as &[usize], &[10]),
+    (&[] as &[usize], &[3]),
+    (&[] as &[usize], &[7])
+);
+
+test_arithmetic_op_integer!(
+    test_sub_u32_scalar,
+    sub,
+    u32,
+    (&[] as &[usize], &[10]),
+    (&[] as &[usize], &[3]),
+    (&[] as &[usize], &[7])
+);
+
+// broadcast
+
+test_arithmetic_op_float!(
+    test_sub_f32_broadcast_multi_expand,
+    sub,
+    f32,
+    (
+        &[2, 1, 4],
+        &[11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0]
+    ),
+    (&[3, 1], &[1.0, 2.0, 3.0]),
+    (
+        &[2, 3, 4],
         &[
-            -9.0, -19.0, -29.0, -39.0, -8.0, -18.0, -28.0, -38.0, -7.0, -17.0, -27.0, -37.0,
-        ],
-    );
-}
+            10.0, 11.0, 12.0, 13.0, 9.0, 10.0, 11.0, 12.0, 8.0, 9.0, 10.0, 11.0, 14.0, 15.0, 16.0,
+            17.0, 13.0, 14.0, 15.0, 16.0, 12.0, 13.0, 14.0, 15.0
+        ]
+    )
+);
+
+test_arithmetic_op_integer!(
+    test_sub_i32_broadcast_multi_expand,
+    sub,
+    i32,
+    (&[2, 1, 4], &[11, 12, 13, 14, 15, 16, 17, 18]),
+    (&[3, 1], &[1, 2, 3]),
+    (
+        &[2, 3, 4],
+        &[
+            10, 11, 12, 13, 9, 10, 11, 12, 8, 9, 10, 11, 14, 15, 16, 17, 13, 14, 15, 16, 12, 13,
+            14, 15
+        ]
+    )
+);
+
+test_arithmetic_op_integer!(
+    test_sub_u32_broadcast_multi_expand,
+    sub,
+    u32,
+    (&[2, 1, 4], &[11, 12, 13, 14, 15, 16, 17, 18]),
+    (&[3, 1], &[1, 2, 3]),
+    (
+        &[2, 3, 4],
+        &[
+            10, 11, 12, 13, 9, 10, 11, 12, 8, 9, 10, 11, 14, 15, 16, 17, 13, 14, 15, 16, 12, 13,
+            14, 15
+        ]
+    )
+);
+
+test_arithmetic_op_float!(
+    test_sub_f32_broadcast_expand,
+    sub,
+    f32,
+    (&[3, 1], &[11.0, 12.0, 13.0]),
+    (&[1, 4], &[1.0, 2.0, 3.0, 4.0]),
+    (
+        &[3, 4],
+        &[
+            10.0, 9.0, 8.0, 7.0, 11.0, 10.0, 9.0, 8.0, 12.0, 11.0, 10.0, 9.0
+        ]
+    )
+);
+
+test_arithmetic_op_integer!(
+    test_sub_i32_broadcast_expand,
+    sub,
+    i32,
+    (&[3, 1], &[11, 12, 13]),
+    (&[1, 4], &[1, 2, 3, 4]),
+    (&[3, 4], &[10, 9, 8, 7, 11, 10, 9, 8, 12, 11, 10, 9])
+);
+
+test_arithmetic_op_integer!(
+    test_sub_u32_broadcast_expand,
+    sub,
+    u32,
+    (&[3, 1], &[11, 12, 13]),
+    (&[1, 4], &[1, 2, 3, 4]),
+    (&[3, 4], &[10, 9, 8, 7, 11, 10, 9, 8, 12, 11, 10, 9])
+);
+
+test_arithmetic_op_float!(
+    test_sub_f32_broadcast_trailing,
+    sub,
+    f32,
+    (&[2, 3], &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]),
+    (&[3], &[10.0, 20.0, 30.0]),
+    (&[2, 3], &[0.0, 0.0, 0.0, 30.0, 30.0, 30.0])
+);
+
+test_arithmetic_op_integer!(
+    test_sub_i32_broadcast_trailing,
+    sub,
+    i32,
+    (&[2, 3], &[10, 20, 30, 40, 50, 60]),
+    (&[3], &[10, 20, 30]),
+    (&[2, 3], &[0, 0, 0, 30, 30, 30])
+);
+
+test_arithmetic_op_integer!(
+    test_sub_u32_broadcast_trailing,
+    sub,
+    u32,
+    (&[2, 3], &[10, 20, 30, 40, 50, 60]),
+    (&[3], &[10, 20, 30]),
+    (&[2, 3], &[0, 0, 0, 30, 30, 30])
+);
+
+test_arithmetic_op_float!(
+    test_sub_f32_broadcast_scalar,
+    sub,
+    f32,
+    (&[4], &[5.0, 6.0, 7.0, 8.0]),
+    (&[] as &[usize], &[10.0]),
+    (&[4], &[-5.0, -4.0, -3.0, -2.0])
+);
+
+test_arithmetic_op_integer!(
+    test_sub_i32_broadcast_scalar,
+    sub,
+    i32,
+    (&[4], &[15, 16, 17, 18]),
+    (&[] as &[usize], &[10]),
+    (&[4], &[5, 6, 7, 8])
+);
+
+test_arithmetic_op_integer!(
+    test_sub_u32_broadcast_scalar,
+    sub,
+    u32,
+    (&[4], &[15, 16, 17, 18]),
+    (&[] as &[usize], &[10]),
+    (&[4], &[5, 6, 7, 8])
+);
+
+test_arithmetic_op_float!(
+    test_sub_f32_broadcast_scalar_reverse,
+    sub,
+    f32,
+    (&[] as &[usize], &[10.0]),
+    (&[4], &[1.0, 2.0, 3.0, 4.0]),
+    (&[4], &[9.0, 8.0, 7.0, 6.0])
+);
+
+test_arithmetic_op_integer!(
+    test_sub_i32_broadcast_scalar_reverse,
+    sub,
+    i32,
+    (&[] as &[usize], &[10]),
+    (&[4], &[1, 2, 3, 4]),
+    (&[4], &[9, 8, 7, 6])
+);
+
+test_arithmetic_op_integer!(
+    test_sub_u32_broadcast_scalar_reverse,
+    sub,
+    u32,
+    (&[] as &[usize], &[10]),
+    (&[4], &[1, 2, 3, 4]),
+    (&[4], &[9, 8, 7, 6])
+);
+
+// error
 
 #[test]
-fn test_sub_incompatible_shapes() {
+fn test_sub_error_incompatible_shapes() {
     let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::from_slice(&ctx, COLUMN).unwrap();
-    let b = Tensor::<f32>::from_slice(&ctx, VECTOR_A).unwrap();
+    let a = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0, 3.0]).unwrap();
+    let b = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0, 3.0, 4.0]).unwrap();
     assert!(a.sub(&b).is_err());
-}
-
-#[test]
-fn test_sub_i32() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<i32>::from_slice(&ctx, VECTOR_I32_B).unwrap();
-    let b = Tensor::<i32>::from_slice(&ctx, VECTOR_I32_A).unwrap();
-    let c = a.sub(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![9, 18, 27, 36]);
-}
-
-#[test]
-fn test_sub_u32() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<u32>::from_slice(&ctx, VECTOR_U32_B).unwrap();
-    let b = Tensor::<u32>::from_slice(&ctx, VECTOR_U32_A).unwrap();
-    let c = a.sub(&b).unwrap();
-    assert_eq!(c.dimensions(), &[4]);
-    let out = c.to_vec().unwrap();
-    assert_eq!(out, vec![9, 18, 27, 36]);
-}
-
-#[test]
-fn test_sub_non_aligned() {
-    let ctx = Context::try_default().unwrap();
-    let data_a: Vec<f32> = (0_u8..42).map(|i| f32::from(i) * 10.0).collect();
-    let data_b: Vec<f32> = (0_u8..42).map(f32::from).collect();
-    let a = Tensor::<f32>::from_slice(&ctx, &data_a).unwrap();
-    let b = Tensor::<f32>::from_slice(&ctx, &data_b).unwrap();
-    let c = a.sub(&b).unwrap();
-    assert_eq!(c.dimensions(), &[42]);
-    let out = c.to_vec().unwrap();
-    let expected: Vec<f32> = data_a
-        .iter()
-        .zip(data_b.iter())
-        .map(|(x, y)| x - y)
-        .collect();
-    assert_vec_relative_eq(&out, &expected);
-}
-
-#[test]
-fn test_sub_large() {
-    let ctx = Context::try_default().unwrap();
-    let len = 4096 * 4096;
-    let a = Tensor::<f32>::constant(&ctx, &[len], &[SCALAR]).unwrap();
-    let b = Tensor::<f32>::constant(&ctx, &[len], &[3.0]).unwrap();
-    let c = a.sub(&b).unwrap();
-    assert_eq!(c.dimensions(), &[len]);
-    let out = c.to_vec().unwrap();
-    for val in &out[..100] {
-        assert_relative_eq!(*val, 7.0, epsilon = 1e-4);
-    }
-}
-
-#[test]
-fn test_sub_scalar_to_scalar() {
-    let ctx = Context::try_default().unwrap();
-    let a = Tensor::<f32>::constant(&ctx, &[], &[SCALAR]).unwrap();
-    let b = Tensor::<f32>::constant(&ctx, &[], &[3.0]).unwrap();
-    let c = a.sub(&b).unwrap();
-    assert_eq!(c.dimensions(), &[] as &[usize]);
-    let out = c.to_vec().unwrap();
-    assert_relative_eq!(out[0], 7.0, epsilon = 1e-4);
 }
