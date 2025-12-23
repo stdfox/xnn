@@ -378,6 +378,18 @@ impl<T: NumericElement> Tensor<T> {
         })
     }
 
+    /// Mean reduction along specified axes.
+    ///
+    /// Output shape equals input shape with reduced axes set to 1.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if axes are invalid or duplicate.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn mean_reduce(&self, axes: &[usize]) -> Result<Self, Error> {
+        self.sum_reduce(axes, true)
+    }
+
     /// Applies a reduce operation and returns a new tensor.
     fn reduce_op<F>(&self, axes: &[usize], op: F) -> Result<Self, Error>
     where

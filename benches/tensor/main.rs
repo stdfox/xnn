@@ -196,6 +196,10 @@ criterion::criterion_group!(
     reduce::max::bench_max_reduce,
     reduce::max::bench_max_reduce_axis0,
     reduce::max::bench_max_reduce_axis1,
+    // Reduce mean_reduce
+    reduce::mean::bench_mean_reduce,
+    reduce::mean::bench_mean_reduce_axis0,
+    reduce::mean::bench_mean_reduce_axis1,
     // Reduce min_reduce
     reduce::min::bench_min_reduce,
     reduce::min::bench_min_reduce_axis0,

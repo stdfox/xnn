@@ -88,8 +88,8 @@ impl Model {
 
 /// Compute MSE loss.
 fn compute_loss(diff: &Tensor<f32>) -> Result<f32, Error> {
-    let sum = diff.sqr()?.sum_reduce(&[0], false)?;
-    Ok(sum.to_vec()?[0] / 4.0)
+    let mse = diff.sqr()?.mean_reduce(&[0])?;
+    Ok(mse.to_vec()?[0])
 }
 
 /// Print inference results.

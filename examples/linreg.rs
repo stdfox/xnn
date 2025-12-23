@@ -69,9 +69,9 @@ impl Model {
 }
 
 /// Compute MSE loss from diff tensor.
-fn compute_loss(diff: &Tensor<f32>, n: f32) -> Result<f32, Error> {
-    let sum = diff.sqr()?.sum_reduce(&[0], false)?;
-    Ok(sum.to_vec()?[0] / n)
+fn compute_loss(diff: &Tensor<f32>) -> Result<f32, Error> {
+    let mse = diff.sqr()?.mean_reduce(&[0])?;
+    Ok(mse.to_vec()?[0])
 }
 
 /// Generate synthetic training data: y = 2x + 1.
@@ -124,10 +124,10 @@ fn main() -> Result<(), Box<dyn core::error::Error>> {
 
     let (x, y) = generate_data(&ctx, cfg.samples)?;
 
-    let n = f32::from(cfg.samples);
     let mut model = Model::new(&ctx)?;
 
     // Learning rate scaled by 2/n for gradient descent
+    let n = f32::from(cfg.samples);
     let lr = Tensor::constant(&ctx, &[1], &[2.0 * cfg.learning_rate / n])?;
 
     println!("Training linear regression: y = wx + b");
@@ -137,7 +137,7 @@ fn main() -> Result<(), Box<dyn core::error::Error>> {
         let diff = model.step(&x, &y, &lr)?;
 
         if epoch % 100 == 0 || epoch == cfg.epochs - 1 {
-            let loss = compute_loss(&diff, n)?;
+            let loss = compute_loss(&diff)?;
             let (w, b) = model.weights()?;
             println!("Epoch {epoch:3}: loss = {loss:.6}, w = {w:.4}, b = {b:.4}");
         }
