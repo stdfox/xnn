@@ -2,6 +2,7 @@
 
 mod activation;
 mod binary;
+mod clamp;
 mod constant;
 mod copy;
 mod from_shape_slice;

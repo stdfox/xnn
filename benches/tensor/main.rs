@@ -128,10 +128,41 @@ fn bench_copy(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_clamp(c: &mut criterion::Criterion) {
+    let ctx = Context::try_default().unwrap();
+    let mut group = configure(c, "tensor/clamp");
+
+    for &(name, dims) in SIZES {
+        let len: usize = dims.iter().product();
+        let x = Tensor::<f32>::constant(&ctx, dims, &random_vec::<f32>(len)).unwrap();
+        let min_val = Tensor::<f32>::constant(&ctx, &[1], &[0.0]).unwrap();
+        let max_val = Tensor::<f32>::constant(&ctx, &[1], &[1.0]).unwrap();
+
+        group.throughput(Throughput::ElementsAndBytes {
+            elements: len as u64,
+            bytes: (len * size_of::<f32>()) as u64,
+        });
+
+        group.bench_with_input(
+            BenchmarkId::from_parameter(name),
+            &(&x, &min_val, &max_val),
+            |bencher, (x, min_val, max_val)| {
+                bencher.iter(|| {
+                    let _ = x.clamp(min_val, max_val).unwrap();
+                    ctx.poll().unwrap();
+                });
+            },
+        );
+    }
+
+    group.finish();
+}
+
 criterion::criterion_group!(
     benches,
     bench_constant,
     bench_copy,
+    bench_clamp,
     // Activation
     activation::bench_gelu,
     activation::bench_relu,

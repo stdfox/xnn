@@ -53,13 +53,37 @@ impl Layout {
         self.dimensions.iter().product::<usize>().max(1)
     }
 
-    /// Computes broadcast output dimensions for two layouts.
+    /// Computes broadcast dimensions and strides for multiple layouts.
     ///
-    /// Returns `None` if dimensions are incompatible.
-    pub(crate) fn broadcast_dimensions(&self, other: &Layout) -> Option<Box<[usize]>> {
-        let a = &self.dimensions;
-        let b = &other.dimensions;
+    /// Returns output dimensions and strides for each input layout,
+    /// or `None` if layouts are not broadcast-compatible.
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn broadcast(layouts: &[&Layout]) -> Option<(Box<[usize]>, Vec<Box<[usize]>>)> {
+        if layouts.is_empty() {
+            return Some((Box::new([]), Vec::new()));
+        }
+        if layouts.len() == 1 {
+            return Some((
+                layouts[0].dimensions.clone(),
+                vec![layouts[0].strides.clone()],
+            ));
+        }
 
+        let mut out_dims = layouts[0].dimensions.clone();
+        for layout in &layouts[1..] {
+            out_dims = Self::broadcast_dimensions(&out_dims, &layout.dimensions)?;
+        }
+
+        let strides = layouts
+            .iter()
+            .map(|l| l.broadcast_strides(&out_dims))
+            .collect();
+
+        Some((out_dims, strides))
+    }
+
+    /// Computes broadcast dimensions for two dimension slices.
+    fn broadcast_dimensions(a: &[usize], b: &[usize]) -> Option<Box<[usize]>> {
         let mut result: Vec<usize> = a
             .iter()
             .rev()
@@ -83,7 +107,7 @@ impl Layout {
     /// Computes strides for broadcasting this layout to target shape.
     ///
     /// Broadcast dimensions have stride 0.
-    pub(crate) fn broadcast_strides(&self, target: &[usize]) -> Box<[usize]> {
+    fn broadcast_strides(&self, target: &[usize]) -> Box<[usize]> {
         let dimensions = &self.dimensions;
         let strides = &self.strides;
 
@@ -199,51 +223,100 @@ mod tests {
     }
 
     #[test]
-    fn test_broadcast_dimensions_same() {
+    fn test_broadcast_empty() {
+        let (dims, strides) = Layout::broadcast(&[]).unwrap();
+        assert_eq!(dims.as_ref(), &[] as &[usize]);
+        assert!(strides.is_empty());
+    }
+
+    #[test]
+    fn test_broadcast_single() {
+        let a = Layout::from_dimensions(&[2, 3, 4]).unwrap();
+        let (dims, strides) = Layout::broadcast(&[&a]).unwrap();
+        assert_eq!(dims.as_ref(), &[2, 3, 4]);
+        assert_eq!(strides.len(), 1);
+        assert_eq!(strides[0].as_ref(), &[12, 4, 1]);
+    }
+
+    #[test]
+    fn test_broadcast_two_same() {
         let a = Layout::from_dimensions(&[2, 3, 4]).unwrap();
         let b = Layout::from_dimensions(&[2, 3, 4]).unwrap();
-        assert_eq!(a.broadcast_dimensions(&b).unwrap().as_ref(), &[2, 3, 4]);
+        let (dims, strides) = Layout::broadcast(&[&a, &b]).unwrap();
+        assert_eq!(dims.as_ref(), &[2, 3, 4]);
+        assert_eq!(strides[0].as_ref(), &[12, 4, 1]);
+        assert_eq!(strides[1].as_ref(), &[12, 4, 1]);
     }
 
     #[test]
-    fn test_broadcast_dimensions_scalar() {
+    fn test_broadcast_two_scalar() {
         let a = Layout::from_dimensions(&[2, 3, 4]).unwrap();
         let b = Layout::from_dimensions(&[]).unwrap();
-        assert_eq!(a.broadcast_dimensions(&b).unwrap().as_ref(), &[2, 3, 4]);
-        assert_eq!(b.broadcast_dimensions(&a).unwrap().as_ref(), &[2, 3, 4]);
+        let (dims, strides) = Layout::broadcast(&[&a, &b]).unwrap();
+        assert_eq!(dims.as_ref(), &[2, 3, 4]);
+        assert_eq!(strides[0].as_ref(), &[12, 4, 1]);
+        assert_eq!(strides[1].as_ref(), &[0, 0, 0]);
     }
 
     #[test]
-    fn test_broadcast_dimensions_trailing() {
+    fn test_broadcast_two_trailing() {
         let a = Layout::from_dimensions(&[2, 3, 4]).unwrap();
         let b = Layout::from_dimensions(&[4]).unwrap();
-        assert_eq!(a.broadcast_dimensions(&b).unwrap().as_ref(), &[2, 3, 4]);
-        assert_eq!(b.broadcast_dimensions(&a).unwrap().as_ref(), &[2, 3, 4]);
+        let (dims, strides) = Layout::broadcast(&[&a, &b]).unwrap();
+        assert_eq!(dims.as_ref(), &[2, 3, 4]);
+        assert_eq!(strides[0].as_ref(), &[12, 4, 1]);
+        assert_eq!(strides[1].as_ref(), &[0, 0, 1]);
     }
 
     #[test]
-    fn test_broadcast_dimensions_expand() {
+    fn test_broadcast_two_expand() {
         let a = Layout::from_dimensions(&[3, 1]).unwrap();
         let b = Layout::from_dimensions(&[1, 4]).unwrap();
-        assert_eq!(a.broadcast_dimensions(&b).unwrap().as_ref(), &[3, 4]);
+        let (dims, strides) = Layout::broadcast(&[&a, &b]).unwrap();
+        assert_eq!(dims.as_ref(), &[3, 4]);
+        assert_eq!(strides[0].as_ref(), &[1, 0]);
+        assert_eq!(strides[1].as_ref(), &[0, 1]);
     }
 
     #[test]
-    fn test_broadcast_dimensions_multi_expand() {
+    fn test_broadcast_two_multi_expand() {
         let a = Layout::from_dimensions(&[2, 1, 4]).unwrap();
         let b = Layout::from_dimensions(&[3, 1]).unwrap();
-        assert_eq!(a.broadcast_dimensions(&b).unwrap().as_ref(), &[2, 3, 4]);
+        let (dims, strides) = Layout::broadcast(&[&a, &b]).unwrap();
+        assert_eq!(dims.as_ref(), &[2, 3, 4]);
+        assert_eq!(strides[0].as_ref(), &[4, 0, 1]);
+        assert_eq!(strides[1].as_ref(), &[0, 1, 0]);
     }
 
     #[test]
-    fn test_broadcast_dimensions_incompatible() {
+    fn test_broadcast_three() {
+        let a = Layout::from_dimensions(&[2, 1, 4]).unwrap();
+        let b = Layout::from_dimensions(&[3, 1]).unwrap();
+        let c = Layout::from_dimensions(&[1]).unwrap();
+        let (dims, strides) = Layout::broadcast(&[&a, &b, &c]).unwrap();
+        assert_eq!(dims.as_ref(), &[2, 3, 4]);
+        assert_eq!(strides[0].as_ref(), &[4, 0, 1]);
+        assert_eq!(strides[1].as_ref(), &[0, 1, 0]);
+        assert_eq!(strides[2].as_ref(), &[0, 0, 0]);
+    }
+
+    #[test]
+    fn test_broadcast_incompatible() {
         let a = Layout::from_dimensions(&[3]).unwrap();
         let b = Layout::from_dimensions(&[4]).unwrap();
-        assert!(a.broadcast_dimensions(&b).is_none());
+        assert!(Layout::broadcast(&[&a, &b]).is_none());
 
         let a = Layout::from_dimensions(&[2, 3]).unwrap();
         let b = Layout::from_dimensions(&[3, 2]).unwrap();
-        assert!(a.broadcast_dimensions(&b).is_none());
+        assert!(Layout::broadcast(&[&a, &b]).is_none());
+    }
+
+    #[test]
+    fn test_broadcast_three_incompatible() {
+        let a = Layout::from_dimensions(&[2, 3]).unwrap();
+        let b = Layout::from_dimensions(&[3]).unwrap();
+        let c = Layout::from_dimensions(&[4]).unwrap();
+        assert!(Layout::broadcast(&[&a, &b, &c]).is_none());
     }
 
     #[test]

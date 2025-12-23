@@ -2,6 +2,7 @@
 
 mod activation;
 mod binary;
+mod clamp;
 mod constant;
 mod copy;
 mod matrix;
@@ -10,6 +11,7 @@ mod unary;
 
 pub(crate) use activation::*;
 pub(crate) use binary::*;
+pub(crate) use clamp::clamp;
 pub(crate) use constant::constant;
 pub(crate) use copy::copy;
 pub(crate) use matrix::*;

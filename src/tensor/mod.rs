@@ -111,27 +111,6 @@ impl<T: Element> Tensor<T> {
         self.ctx.read_buffer(&self.buffer)
     }
 
-    /// Computes broadcast parameters for two tensors.
-    #[allow(clippy::type_complexity)]
-    fn broadcast_with(&self, other: &Self) -> Result<(Layout, Box<[usize]>, Box<[usize]>), Error> {
-        let out_dimensions = self
-            .layout
-            .broadcast_dimensions(&other.layout)
-            .ok_or_else(|| {
-                TensorError::InvalidShape(format!(
-                    "dimensions {:?} and {:?} are not broadcast-compatible",
-                    self.dimensions(),
-                    other.dimensions()
-                ))
-            })?;
-
-        let a_strides = self.layout.broadcast_strides(&out_dimensions);
-        let b_strides = other.layout.broadcast_strides(&out_dimensions);
-        let layout = Layout::from_dimensions(&out_dimensions)?;
-
-        Ok((layout, a_strides, b_strides))
-    }
-
     /// Applies a binary operation with broadcasting and returns a new tensor.
     #[allow(clippy::type_complexity)]
     fn binary_op<U: Element>(
@@ -147,7 +126,16 @@ impl<T: Element> Tensor<T> {
             &[usize],
         ) -> Result<(), Error>,
     ) -> Result<Tensor<U>, Error> {
-        let (layout, a_strides, b_strides) = self.broadcast_with(other)?;
+        let (out_dims, strides) =
+            Layout::broadcast(&[&self.layout, &other.layout]).ok_or_else(|| {
+                TensorError::InvalidShape(format!(
+                    "dimensions {:?} and {:?} are not broadcast-compatible",
+                    self.dimensions(),
+                    other.dimensions()
+                ))
+            })?;
+
+        let layout = Layout::from_dimensions(&out_dims)?;
         let buffer = self.ctx.create_buffer(layout.size())?;
 
         op(
@@ -156,8 +144,8 @@ impl<T: Element> Tensor<T> {
             &other.buffer,
             &buffer,
             layout.dimensions(),
-            &a_strides,
-            &b_strides,
+            &strides[0],
+            &strides[1],
         )?;
 
         Ok(Tensor {
@@ -185,6 +173,49 @@ impl<T: Element> Tensor<T> {
 }
 
 impl<T: NumericElement> Tensor<T> {
+    /// Clamps tensor values to range `[min_val, max_val]` with broadcasting.
+    ///
+    /// Computes `max(min(x, max_val), min_val)` element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if GPU operation fails.
+    pub fn clamp(&self, min_val: &Self, max_val: &Self) -> Result<Self, Error> {
+        let (out_dimensions, strides) =
+            Layout::broadcast(&[&self.layout, &min_val.layout, &max_val.layout]).ok_or_else(
+                || {
+                    TensorError::InvalidShape(format!(
+                        "dimensions {:?}, {:?}, and {:?} are not broadcast-compatible",
+                        self.dimensions(),
+                        min_val.dimensions(),
+                        max_val.dimensions()
+                    ))
+                },
+            )?;
+
+        let layout = Layout::from_dimensions(&out_dimensions)?;
+        let buffer = self.ctx.create_buffer(layout.size())?;
+
+        ops::clamp(
+            &self.ctx,
+            &self.buffer,
+            &min_val.buffer,
+            &max_val.buffer,
+            &buffer,
+            layout.dimensions(),
+            &strides[0],
+            &strides[1],
+            &strides[2],
+        )?;
+
+        Ok(Self {
+            buffer,
+            layout,
+            ctx: self.ctx.clone(),
+        })
+    }
+
     /// Element-wise addition with broadcasting.
     ///
     /// # Errors
