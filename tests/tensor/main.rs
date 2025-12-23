@@ -1,5 +1,6 @@
 //! Tensor integration tests.
 
+mod activation;
 mod binary;
 mod constant;
 mod copy;

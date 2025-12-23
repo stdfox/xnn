@@ -412,6 +412,61 @@ impl<T: IntegerElement> Tensor<T> {
 }
 
 impl<T: FloatElement> Tensor<T> {
+    /// Applies `GELU` activation element-wise.
+    ///
+    /// Computes `x * sigmoid(1.702 * x)`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn gelu(&self) -> Result<Self, Error> {
+        self.unary_op(ops::gelu)
+    }
+
+    /// Applies `ReLU` activation element-wise.
+    ///
+    /// Computes `max(x, 0)`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn relu(&self) -> Result<Self, Error> {
+        self.unary_op(ops::relu)
+    }
+
+    /// Applies sigmoid activation element-wise.
+    ///
+    /// Computes `1 / (1 + exp(-x))`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn sigmoid(&self) -> Result<Self, Error> {
+        self.unary_op(ops::sigmoid)
+    }
+
+    /// Applies `SiLU` (Swish) activation element-wise.
+    ///
+    /// Computes `x * sigmoid(x)`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn silu(&self) -> Result<Self, Error> {
+        self.unary_op(ops::silu)
+    }
+
+    /// Applies softplus activation element-wise.
+    ///
+    /// Computes `log(exp(x) + 1)`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn softplus(&self) -> Result<Self, Error> {
+        self.unary_op(ops::softplus)
+    }
+
     /// Batched matrix multiplication with optional transposes.
     ///
     /// `A[..., m, k] × B[..., k, n] → C[..., m, n]`

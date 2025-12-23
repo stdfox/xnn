@@ -1,5 +1,6 @@
 //! Tensor benchmarks.
 
+mod activation;
 mod binary;
 mod matrix;
 mod reduce;
@@ -131,6 +132,12 @@ criterion::criterion_group!(
     benches,
     bench_constant,
     bench_copy,
+    // Activation
+    activation::bench_gelu,
+    activation::bench_relu,
+    activation::bench_sigmoid,
+    activation::bench_silu,
+    activation::bench_softplus,
     // Binary arithmetic
     binary::arithmetic::bench_add,
     binary::arithmetic::bench_sub,

@@ -1,5 +1,6 @@
 //! Tensor operations.
 
+mod activation;
 mod binary;
 mod constant;
 mod copy;
@@ -7,6 +8,7 @@ mod matrix;
 mod reduce;
 mod unary;
 
+pub(crate) use activation::*;
 pub(crate) use binary::*;
 pub(crate) use constant::constant;
 pub(crate) use copy::copy;

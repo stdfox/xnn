@@ -5,15 +5,12 @@
 //!
 //! # Categories
 //!
-//! - **activation** — `relu`, `sigmoid`.
 //! - **linalg** — `transpose`.
 //! - **shape** — `broadcast_rows`.
 
-mod activation;
 mod linalg;
 mod shape;
 
-pub use activation::{relu, sigmoid};
 pub use linalg::transpose;
 pub use shape::broadcast_rows;
 
@@ -31,21 +28,6 @@ pub fn sync(ctx: &Context) {
     ctx.device()
         .poll(wgpu::PollType::wait_indefinitely())
         .expect("device poll failed");
-}
-
-/// Debug assertion that two buffers have the same length.
-#[inline]
-pub(crate) fn debug_assert_same_len<T: Element, U: Element>(
-    a: &Buffer<T>,
-    b: &Buffer<U>,
-    name: &str,
-) {
-    debug_assert!(
-        a.len() == b.len(),
-        "buffer length mismatch: a={}, {name}={}",
-        a.len(),
-        b.len()
-    );
 }
 
 /// Debug assertion that buffer length matches expected size.

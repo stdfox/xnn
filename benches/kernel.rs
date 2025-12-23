@@ -44,50 +44,6 @@ fn bench_transpose(c: &mut Criterion) {
     group.finish();
 }
 
-fn bench_relu(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
-
-    let mut group = c.benchmark_group("kernel/relu");
-    configure(&mut group);
-
-    for &size in SIZES {
-        let len = size * size;
-        let a = ctx.create_buffer_from_slice(&random_vec(len)).unwrap();
-        let b = ctx.create_buffer::<f32>(len).unwrap();
-
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
-            bencher.iter(|| {
-                kernel::relu(&ctx, &a, &b);
-                kernel::sync(&ctx);
-            });
-        });
-    }
-
-    group.finish();
-}
-
-fn bench_sigmoid(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
-
-    let mut group = c.benchmark_group("kernel/sigmoid");
-    configure(&mut group);
-
-    for &size in SIZES {
-        let len = size * size;
-        let a = ctx.create_buffer_from_slice(&random_vec(len)).unwrap();
-        let b = ctx.create_buffer::<f32>(len).unwrap();
-
-        group.bench_with_input(BenchmarkId::from_parameter(size), &size, |bencher, _| {
-            bencher.iter(|| {
-                kernel::sigmoid(&ctx, &a, &b);
-                kernel::sync(&ctx);
-            });
-        });
-    }
-
-    group.finish();
-}
-
 fn bench_broadcast_rows(c: &mut Criterion) {
     let ctx = Context::try_default().unwrap();
 
@@ -109,11 +65,5 @@ fn bench_broadcast_rows(c: &mut Criterion) {
     group.finish();
 }
 
-criterion::criterion_group!(
-    benches,
-    bench_transpose,
-    bench_relu,
-    bench_sigmoid,
-    bench_broadcast_rows
-);
+criterion::criterion_group!(benches, bench_transpose, bench_broadcast_rows);
 criterion::criterion_main!(benches);
