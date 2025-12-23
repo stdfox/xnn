@@ -17,7 +17,6 @@ extern crate alloc;
 
 pub mod element;
 pub mod error;
-pub mod kernel;
 
 mod device;
 mod tensor;

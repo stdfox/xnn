@@ -2,7 +2,7 @@
 
 use alloc::sync::Arc;
 use core::any::TypeId;
-use std::sync::{PoisonError, RwLock};
+use std::sync::RwLock;
 
 use wgpu::naga::FastHashMap;
 use wgpu::util::DeviceExt as _;
@@ -90,6 +90,20 @@ impl Context {
         }
     }
 
+    /// Blocks until all submitted GPU work completes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Device`] if device poll fails.
+    pub fn poll(&self) -> Result<(), Error> {
+        self.inner
+            .device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .map_err(|e| Error::Device(format!("device poll failed: {e}")))?;
+
+        Ok(())
+    }
+
     /// Creates an uninitialized GPU buffer with the given number of elements.
     ///
     /// The buffer is padded to a multiple of 4 elements.
@@ -97,7 +111,7 @@ impl Context {
     /// # Errors
     ///
     /// Returns [`Error::Device`] if buffer size exceeds max storage buffer binding size.
-    pub fn create_buffer<T: Element>(&self, len: usize) -> Result<Buffer<T>, Error> {
+    pub(crate) fn create_buffer<T: Element>(&self, len: usize) -> Result<Buffer<T>, Error> {
         let native_size = core::mem::size_of::<T::Native>() as u64;
         let size = len as u64 * native_size;
         if size > MAX_STORAGE_BUFFER_SIZE {
@@ -127,7 +141,10 @@ impl Context {
     /// # Errors
     ///
     /// Returns [`Error::Device`] if buffer size exceeds max storage buffer binding size.
-    pub fn create_buffer_from_slice<T: Element>(&self, data: &[T]) -> Result<Buffer<T>, Error> {
+    pub(crate) fn create_buffer_from_slice<T: Element>(
+        &self,
+        data: &[T],
+    ) -> Result<Buffer<T>, Error> {
         let native_size = core::mem::size_of::<T::Native>() as u64;
         let size = data.len() as u64 * native_size;
         if size > MAX_STORAGE_BUFFER_SIZE {
@@ -172,7 +189,7 @@ impl Context {
     /// # Errors
     ///
     /// Returns [`Error::Device`] if the read operation fails.
-    pub fn read_buffer<T: Element>(&self, buffer: &Buffer<T>) -> Result<Vec<T>, Error> {
+    pub(crate) fn read_buffer<T: Element>(&self, buffer: &Buffer<T>) -> Result<Vec<T>, Error> {
         if buffer.is_empty() {
             return Ok(Vec::new());
         }
@@ -282,57 +299,6 @@ impl Context {
     pub(crate) fn queue(&self) -> &wgpu::Queue {
         &self.inner.queue
     }
-
-    /// Gets or creates a cached compute pipeline for type `T` and factory `F`.
-    pub(crate) fn get_or_create_kernel_pipeline<T: 'static, F>(
-        &self,
-        create_fn: F,
-    ) -> Arc<wgpu::ComputePipeline>
-    where
-        F: FnOnce(&wgpu::Device) -> wgpu::ComputePipeline + 'static,
-    {
-        let type_id = TypeId::of::<(T, F)>();
-
-        {
-            let cache = self
-                .inner
-                .cache
-                .read()
-                .unwrap_or_else(PoisonError::into_inner);
-            if let Some(pipeline) = cache.get(&type_id) {
-                return Arc::clone(pipeline);
-            }
-        }
-
-        let mut cache = self
-            .inner
-            .cache
-            .write()
-            .unwrap_or_else(PoisonError::into_inner);
-
-        if let Some(pipeline) = cache.get(&type_id) {
-            return Arc::clone(pipeline);
-        }
-
-        let pipeline = Arc::new(create_fn(&self.inner.device));
-        cache.insert(type_id, Arc::clone(&pipeline));
-
-        pipeline
-    }
-
-    /// Blocks until all submitted GPU work completes.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::Device`] if device poll fails.
-    pub fn poll(&self) -> Result<(), Error> {
-        self.inner
-            .device
-            .poll(wgpu::PollType::wait_indefinitely())
-            .map_err(|e| Error::Device(format!("device poll failed: {e}")))?;
-
-        Ok(())
-    }
 }
 
 impl core::fmt::Debug for Context {
@@ -352,96 +318,3 @@ impl Clone for Context {
         }
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-
-//     #[test]
-//     fn test_new() {
-//         let ctx = Context::new(0).unwrap();
-//         assert_eq!(ctx.inner.adapter_index, 0);
-//     }
-
-//     #[test]
-//     fn test_create_buffer() {
-//         let ctx = Context::try_default().unwrap();
-//         let buf = ctx.create_buffer::<f32>(4).unwrap();
-//         assert_eq!(buf.adapter_index(), ctx.inner.adapter_index);
-//         assert_eq!(buf.len(), 4);
-//         assert_eq!(buf.inner().size(), 16);
-//     }
-
-//     #[test]
-//     fn test_create_buffer_from_slice() {
-//         let ctx = Context::try_default().unwrap();
-//         let buf = ctx
-//             .create_buffer_from_slice(&[1.0f32, 2.0, 3.0, 4.0])
-//             .unwrap();
-//         assert_eq!(buf.adapter_index(), ctx.inner.adapter_index);
-//         assert_eq!(buf.len(), 4);
-//     }
-
-//     #[test]
-//     fn test_read_buffer() {
-//         let ctx = Context::try_default().unwrap();
-//         let buf = ctx
-//             .create_buffer_from_slice(&[1.0f32, 2.0, 3.0, 4.0])
-//             .unwrap();
-//         let data = ctx.read_buffer(&buf).unwrap();
-//         assert_eq!(data, vec![1.0, 2.0, 3.0, 4.0]);
-//     }
-
-//     #[test]
-//     fn test_adapter_index() {
-//         let ctx = Context::try_default().unwrap();
-//         let _ = ctx.adapter_index();
-//     }
-
-//     #[test]
-//     fn test_device() {
-//         let ctx = Context::try_default().unwrap();
-//         let _ = ctx.device().limits();
-//     }
-
-//     #[test]
-//     fn test_queue() {
-//         let ctx = Context::try_default().unwrap();
-//         ctx.queue().submit(std::iter::empty());
-//     }
-
-//     #[test]
-//     fn test_get_or_create_kernel_pipeline() {
-//         let ctx = Context::try_default().unwrap();
-//         let pipeline = ctx.get_or_create_kernel_pipeline::<f32, _>(|device| {
-//             let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-//                 label: None,
-//                 source: wgpu::ShaderSource::Wgsl("@compute @workgroup_size(1) fn main() {}".into()),
-//             });
-//             device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-//                 label: None,
-//                 layout: None,
-//                 module: &shader,
-//                 entry_point: Some("main"),
-//                 compilation_options: wgpu::PipelineCompilationOptions::default(),
-//                 cache: None,
-//             })
-//         });
-//         assert!(Arc::strong_count(&pipeline) >= 1);
-//     }
-
-//     #[test]
-//     fn test_default() {
-//         let ctx = Context::try_default().unwrap();
-//         assert!(!ctx.inner.adapter_name.is_empty());
-//     }
-
-//     #[test]
-//     fn test_debug() {
-//         let ctx = Context::try_default().unwrap();
-//         let debug = format!("{:?}", ctx);
-//         assert!(debug.contains("Context"));
-//         assert!(debug.contains("adapter_index"));
-//         assert!(debug.contains("adapter_name"));
-//     }
-// }

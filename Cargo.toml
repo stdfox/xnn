@@ -25,6 +25,12 @@ rand = { version = "~0.9", default-features = false, features = ["std_rng"] }
 name = "tensor"
 harness = false
 
+[[example]]
+name = "linreg"
+
+[[example]]
+name = "xor"
+
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 cast_possible_truncation = "deny"

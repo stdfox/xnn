@@ -76,6 +76,7 @@ pub(crate) fn bench_matmul_transpose(c: &mut Criterion) {
     let k = 512;
     let n = 512;
 
+    #[allow(clippy::type_complexity)]
     let cases: &[(&str, bool, bool, [usize; 2], [usize; 2])] = &[
         ("NN", false, false, [m, k], [k, n]),
         ("TN", true, false, [k, m], [k, n]),
