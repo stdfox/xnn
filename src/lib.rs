@@ -19,6 +19,7 @@ pub mod element;
 pub mod error;
 
 mod device;
+mod kernel;
 mod tensor;
 
 pub use device::{Buffer, Context};

@@ -1,6 +1,5 @@
 //! Tensor operations.
 
-mod activation;
 mod binary;
 mod clamp;
 mod constant;
@@ -9,7 +8,6 @@ mod matrix;
 mod reduce;
 mod unary;
 
-pub(crate) use activation::*;
 pub(crate) use binary::*;
 pub(crate) use clamp::clamp;
 pub(crate) use constant::constant;

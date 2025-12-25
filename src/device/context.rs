@@ -7,6 +7,7 @@ use std::sync::RwLock;
 use wgpu::naga::FastHashMap;
 use wgpu::util::DeviceExt as _;
 
+use crate::kernel::KernelCompiler;
 use crate::{Buffer, Element, Error};
 
 /// Default `max_storage_buffer_binding_size` (128 MiB).
@@ -19,6 +20,7 @@ type PipelineCache = RwLock<FastHashMap<TypeId, Arc<wgpu::ComputePipeline>>>;
 struct ContextInner {
     device: wgpu::Device,
     queue: wgpu::Queue,
+    compiler: KernelCompiler,
     cache: PipelineCache,
 }
 
@@ -82,6 +84,7 @@ impl Context {
         let inner = ContextInner {
             device: device.clone(),
             queue: queue.clone(),
+            compiler: KernelCompiler::new(device),
             cache: RwLock::new(FastHashMap::default()),
         };
 
@@ -298,6 +301,11 @@ impl Context {
     /// Returns the wgpu queue.
     pub(crate) fn queue(&self) -> &wgpu::Queue {
         &self.inner.queue
+    }
+
+    /// Returns the kernel compiler.
+    pub(crate) fn compiler(&self) -> &KernelCompiler {
+        &self.inner.compiler
     }
 }
 

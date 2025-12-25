@@ -475,59 +475,124 @@ impl<T: IntegerElement> Tensor<T> {
 }
 
 impl<T: FloatElement> Tensor<T> {
-    /// Applies `GELU` activation element-wise.
+    /// `ELU` activation: `y = select(x < 0, alpha * (exp(x) - 1), x)`.
     ///
-    /// Computes `x * sigmoid(1.702 * x)`.
+    /// # Arguments
+    ///
+    /// * `alpha` - Slope for negative values. Default: `1.0`.
     ///
     /// # Errors
     ///
-    /// - [`Error::Device`] if operation fails.
+    /// - [`Error::Kernel`] if operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn elu(&self, alpha: Option<f32>) -> Result<Self, Error> {
+        let alpha = alpha.unwrap_or(1.0);
+        self.activation(|ctx, x, y| crate::kernel::ops::elu(ctx, x, y, alpha))
+    }
+
+    /// `GELU` activation: `y = x * sigmoid(1.702 * x)`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Kernel`] if operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn gelu(&self) -> Result<Self, Error> {
-        self.unary_op(ops::gelu)
+        self.activation(crate::kernel::ops::gelu)
     }
 
-    /// Applies `ReLU` activation element-wise.
+    /// `LeakyReLU` activation: `y = select(x < 0, alpha * x, x)`.
     ///
-    /// Computes `max(x, 0)`.
+    /// # Arguments
+    ///
+    /// * `alpha` - Slope for negative values. Default: `0.01`.
     ///
     /// # Errors
     ///
-    /// - [`Error::Device`] if operation fails.
+    /// - [`Error::Kernel`] if operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn leaky_relu(&self, alpha: Option<f32>) -> Result<Self, Error> {
+        let alpha = alpha.unwrap_or(0.01);
+        self.activation(|ctx, x, y| crate::kernel::ops::leaky_relu(ctx, x, y, alpha))
+    }
+
+    /// `PReLU` activation: `y = select(x < 0, alpha * x, x)`.
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - Learnable parameter tensor with the same shape as `self`.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes mismatch.
+    /// - [`Error::Kernel`] if operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn prelu(&self, alpha: &Self) -> Result<Self, Error> {
+        if self.dimensions() != alpha.dimensions() {
+            return Err(TensorError::InvalidShape(format!(
+                "prelu shape mismatch: {:?} vs {:?}",
+                self.dimensions(),
+                alpha.dimensions()
+            ))
+            .into());
+        }
+        self.activation(|ctx, x, y| crate::kernel::ops::prelu(ctx, x, y, &alpha.buffer))
+    }
+
+    /// `ReLU` activation: `y = max(x, 0)`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Kernel`] if operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn relu(&self) -> Result<Self, Error> {
-        self.unary_op(ops::relu)
+        self.activation(crate::kernel::ops::relu)
     }
 
-    /// Applies sigmoid activation element-wise.
+    /// `SELU` activation: `y = lambda * select(x < 0, alpha * (exp(x) - 1), x)`.
     ///
-    /// Computes `1 / (1 + exp(-x))`.
+    /// # Arguments
+    ///
+    /// * `alpha` - Scale for negative values. Default: `1.673_263_2`.
+    /// * `lambda` - Output scale. Default: `1.050_701`.
     ///
     /// # Errors
     ///
-    /// - [`Error::Device`] if operation fails.
+    /// - [`Error::Kernel`] if operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn selu(&self, alpha: Option<f32>, lambda: Option<f32>) -> Result<Self, Error> {
+        let alpha = alpha.unwrap_or(1.673_263_2);
+        let lambda = lambda.unwrap_or(1.050_701);
+        self.activation(|ctx, x, y| crate::kernel::ops::selu(ctx, x, y, alpha, lambda))
+    }
+
+    /// `Sigmoid` activation: `y = 1 / (1 + exp(-x))`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Kernel`] if operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn sigmoid(&self) -> Result<Self, Error> {
-        self.unary_op(ops::sigmoid)
+        self.activation(crate::kernel::ops::sigmoid)
     }
 
-    /// Applies `SiLU` (Swish) activation element-wise.
-    ///
-    /// Computes `x * sigmoid(x)`.
+    /// `SiLU` activation: `y = x * sigmoid(x)`.
     ///
     /// # Errors
     ///
-    /// - [`Error::Device`] if operation fails.
+    /// - [`Error::Kernel`] if operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn silu(&self) -> Result<Self, Error> {
-        self.unary_op(ops::silu)
+        self.activation(crate::kernel::ops::silu)
     }
 
-    /// Applies softplus activation element-wise.
-    ///
-    /// Computes `log(exp(x) + 1)`.
+    /// `Softplus` activation: `y = log(exp(x) + 1)`.
     ///
     /// # Errors
     ///
-    /// - [`Error::Device`] if operation fails.
+    /// - [`Error::Kernel`] if operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn softplus(&self) -> Result<Self, Error> {
-        self.unary_op(ops::softplus)
+        self.activation(crate::kernel::ops::softplus)
     }
 
     /// Batched matrix multiplication with optional transposes.
@@ -838,6 +903,20 @@ impl<T: FloatElement> Tensor<T> {
     /// - [`Error::Device`] if operation fails.
     pub fn tanh(&self) -> Result<Self, Error> {
         self.unary_op(ops::tanh)
+    }
+
+    /// Applies an activation operation.
+    fn activation(
+        &self,
+        op: impl FnOnce(&Context, &Buffer<T>, &Buffer<T>) -> Result<(), Error>,
+    ) -> Result<Self, Error> {
+        let buffer = self.ctx.create_buffer(self.buffer.len())?;
+        op(&self.ctx, &self.buffer, &buffer)?;
+        Ok(Self {
+            buffer,
+            layout: self.layout.clone(),
+            ctx: self.ctx.clone(),
+        })
     }
 }
 

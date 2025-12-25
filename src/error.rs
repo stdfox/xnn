@@ -11,6 +11,10 @@ pub enum Error {
     #[error(transparent)]
     Tensor(#[from] TensorError),
 
+    /// Kernel generation or compilation error.
+    #[error("{0}")]
+    Kernel(String),
+
     /// GPU device operation failed.
     #[error("{0}")]
     Device(String),

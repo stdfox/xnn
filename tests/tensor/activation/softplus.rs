@@ -27,7 +27,6 @@ fn test_softplus_zero() {
     let data = vec![0.0f32];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.softplus().unwrap();
-    // softplus(0) = log(2) ≈ 0.693
     assert_relative_eq!(result.to_vec().unwrap()[0], 2.0_f32.ln(), epsilon = 1e-4);
 }
 
@@ -38,10 +37,9 @@ fn test_softplus_positive() {
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.softplus().unwrap();
     let out = result.to_vec().unwrap();
-    // softplus is always positive and approaches x for large x
     for (i, &val) in out.iter().enumerate() {
         assert!(val > 0.0);
-        assert!(val >= data[i]); // softplus(x) >= x for x >= 0
+        assert!(val >= data[i]);
     }
 }
 
@@ -52,7 +50,6 @@ fn test_softplus_negative() {
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.softplus().unwrap();
     let out = result.to_vec().unwrap();
-    // softplus approaches 0 for large negative x
     for &val in &out {
         assert!(val > 0.0);
         assert!(val < 1.0);
