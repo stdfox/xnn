@@ -9,7 +9,7 @@ Before committing, ensure your code follows the project style.
 Format code:
 
 ```bash
-cargo fmt
+cargo fmt --all
 ```
 
 Run linter with strict settings:
@@ -31,6 +31,12 @@ cargo test --all-features
 This project uses [Criterion](https://bheisler.github.io/criterion.rs/book/) for benchmarking Benchmarks help track performance regressions.
 
 ### Running benchmarks
+
+List available benchmarks:
+
+```bash
+cargo bench --bench tensor -- --list
+```
 
 Run all tensor benchmarks:
 
@@ -64,7 +70,7 @@ Compare current performance against baseline:
 cargo bench --bench tensor -- --noplot --baseline main
 ```
 
-Compare specific tensor:
+Compare with specific operation:
 
 ```bash
 cargo bench --bench tensor -- copy --noplot --baseline main

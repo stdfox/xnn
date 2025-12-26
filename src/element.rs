@@ -13,6 +13,9 @@ use bytemuck::{Pod, Zeroable};
 
 /// Trait for GPU-compatible element types.
 pub trait Element: Display + Copy + Clone + 'static {
+    /// Size of native representation in bytes.
+    const NATIVE_SIZE: usize = core::mem::size_of::<Self::Native>();
+
     /// Native GPU-compatible representation type.
     type Native: Default + Copy + Pod + Zeroable;
 
@@ -20,13 +23,21 @@ pub trait Element: Display + Copy + Clone + 'static {
     #[must_use]
     fn wgsl_type() -> &'static str;
 
-    /// Returns the WGSL literal for the minimum value.
+    /// Returns the WGSL literal for the zero value.
     #[must_use]
-    fn wgsl_min() -> &'static str;
+    fn wgsl_zero() -> &'static str;
+
+    /// Returns the WGSL literal for the one value.
+    #[must_use]
+    fn wgsl_one() -> &'static str;
 
     /// Returns the WGSL literal for the maximum value.
     #[must_use]
     fn wgsl_max() -> &'static str;
+
+    /// Returns the WGSL literal for the minimum value.
+    #[must_use]
+    fn wgsl_min() -> &'static str;
 
     /// Convert from native GPU representation.
     #[must_use]
@@ -52,13 +63,23 @@ impl Element for f32 {
     }
 
     #[inline]
-    fn wgsl_min() -> &'static str {
-        "bitcast<f32>(0xff800000u)"
+    fn wgsl_zero() -> &'static str {
+        "0.0"
+    }
+
+    #[inline]
+    fn wgsl_one() -> &'static str {
+        "1.0"
     }
 
     #[inline]
     fn wgsl_max() -> &'static str {
         "bitcast<f32>(0x7f800000u)"
+    }
+
+    #[inline]
+    fn wgsl_min() -> &'static str {
+        "bitcast<f32>(0xff800000u)"
     }
 
     #[inline]
@@ -81,13 +102,23 @@ impl Element for i32 {
     }
 
     #[inline]
-    fn wgsl_min() -> &'static str {
-        "bitcast<i32>(0x80000000u)"
+    fn wgsl_zero() -> &'static str {
+        "0i"
+    }
+
+    #[inline]
+    fn wgsl_one() -> &'static str {
+        "1i"
     }
 
     #[inline]
     fn wgsl_max() -> &'static str {
         "bitcast<i32>(0x7fffffffu)"
+    }
+
+    #[inline]
+    fn wgsl_min() -> &'static str {
+        "bitcast<i32>(0x80000000u)"
     }
 
     #[inline]
@@ -110,13 +141,23 @@ impl Element for u32 {
     }
 
     #[inline]
-    fn wgsl_min() -> &'static str {
+    fn wgsl_zero() -> &'static str {
         "0u"
+    }
+
+    #[inline]
+    fn wgsl_one() -> &'static str {
+        "1u"
     }
 
     #[inline]
     fn wgsl_max() -> &'static str {
         "0xffffffffu"
+    }
+
+    #[inline]
+    fn wgsl_min() -> &'static str {
+        "0u"
     }
 
     #[inline]
@@ -139,13 +180,23 @@ impl Element for bool {
     }
 
     #[inline]
-    fn wgsl_min() -> &'static str {
+    fn wgsl_zero() -> &'static str {
         "0u"
+    }
+
+    #[inline]
+    fn wgsl_one() -> &'static str {
+        "1u"
     }
 
     #[inline]
     fn wgsl_max() -> &'static str {
         "0xffffffffu"
+    }
+
+    #[inline]
+    fn wgsl_min() -> &'static str {
+        "0u"
     }
 
     #[inline]

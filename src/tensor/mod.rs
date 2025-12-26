@@ -1,10 +1,13 @@
 //! N-dimensional tensor with GPU-backed storage.
 
 mod layout;
-mod ops;
+
+use alloc::vec::Vec;
+use alloc::{format, vec};
 
 use crate::element::{FloatElement, IntegerElement, LogicalElement, NumericElement, SignedElement};
 use crate::error::{Error, TensorError};
+use crate::kernel::ops;
 use crate::{Buffer, Context, Element};
 use layout::Layout;
 
@@ -41,7 +44,7 @@ impl<T: Element> Tensor<T> {
             1 => {
                 let buffer = ctx.create_buffer(volume)?;
                 let uniform = ctx.create_uniform_buffer(&value[0].to_native());
-                ops::constant(ctx, &buffer, &uniform)?;
+                ops::constant(ctx, &buffer, &uniform);
                 buffer
             }
             n if n == volume => ctx.create_buffer_from_slice(value)?,
@@ -87,7 +90,7 @@ impl<T: Element> Tensor<T> {
     /// - [`Error::Device`] if operation fails.
     pub fn copy(&self) -> Result<Self, Error> {
         let buffer = self.ctx.create_buffer(self.buffer.len())?;
-        ops::copy(&self.ctx, &self.buffer, &buffer)?;
+        ops::copy(&self.ctx, &self.buffer, &buffer);
 
         Ok(Self {
             buffer,
@@ -111,22 +114,13 @@ impl<T: Element> Tensor<T> {
         self.ctx.read_buffer(&self.buffer)
     }
 
-    /// Applies a binary operation with broadcasting and returns a new tensor.
-    #[allow(clippy::type_complexity)]
-    fn binary_op<U: Element>(
+    /// Applies a math binary operation with broadcasting.
+    fn math_binary<U: Element>(
         &self,
         other: &Self,
-        op: fn(
-            &Context,
-            &Buffer<T>,
-            &Buffer<T>,
-            &Buffer<U>,
-            &[usize],
-            &[usize],
-            &[usize],
-        ) -> Result<(), Error>,
+        op: impl FnOnce(&Context, &Buffer<T>, &Buffer<T>, &Buffer<U>, &[usize], &[usize], &[usize]),
     ) -> Result<Tensor<U>, Error> {
-        let (out_dims, strides) =
+        let (dimensions, strides) =
             Layout::broadcast(&[&self.layout, &other.layout]).ok_or_else(|| {
                 TensorError::InvalidShape(format!(
                     "dimensions {:?} and {:?} are not broadcast-compatible",
@@ -135,7 +129,7 @@ impl<T: Element> Tensor<T> {
                 ))
             })?;
 
-        let layout = Layout::from_dimensions(&out_dims)?;
+        let layout = Layout::from_dimensions(&dimensions)?;
         let buffer = self.ctx.create_buffer(layout.size())?;
 
         op(
@@ -143,10 +137,10 @@ impl<T: Element> Tensor<T> {
             &self.buffer,
             &other.buffer,
             &buffer,
-            layout.dimensions(),
             &strides[0],
             &strides[1],
-        )?;
+            layout.strides(),
+        );
 
         Ok(Tensor {
             buffer,
@@ -155,14 +149,10 @@ impl<T: Element> Tensor<T> {
         })
     }
 
-    /// Applies a unary operation and returns a new tensor.
-    #[allow(clippy::type_complexity)]
-    fn unary_op(
-        &self,
-        op: fn(&Context, &Buffer<T>, &Buffer<T>) -> Result<(), Error>,
-    ) -> Result<Self, Error> {
+    /// Applies a math unary operation and returns a new tensor.
+    fn math_unary(&self, op: impl FnOnce(&Context, &Buffer<T>, &Buffer<T>)) -> Result<Self, Error> {
         let buffer = self.ctx.create_buffer(self.buffer.len())?;
-        op(&self.ctx, &self.buffer, &buffer)?;
+        op(&self.ctx, &self.buffer, &buffer);
 
         Ok(Self {
             buffer,
@@ -173,41 +163,37 @@ impl<T: Element> Tensor<T> {
 }
 
 impl<T: NumericElement> Tensor<T> {
-    /// Clamps tensor values to range `[min_val, max_val]` with broadcasting.
-    ///
-    /// Computes `max(min(x, max_val), min_val)` element-wise.
+    /// Clamps tensor values: `y = max(min(x, b), a)`.
     ///
     /// # Errors
     ///
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
     /// - [`Error::Device`] if GPU operation fails.
-    pub fn clamp(&self, min_val: &Self, max_val: &Self) -> Result<Self, Error> {
-        let (out_dimensions, strides) =
-            Layout::broadcast(&[&self.layout, &min_val.layout, &max_val.layout]).ok_or_else(
-                || {
-                    TensorError::InvalidShape(format!(
-                        "dimensions {:?}, {:?}, and {:?} are not broadcast-compatible",
-                        self.dimensions(),
-                        min_val.dimensions(),
-                        max_val.dimensions()
-                    ))
-                },
-            )?;
+    pub fn clamp(&self, a: &Self, b: &Self) -> Result<Self, Error> {
+        let (dimensions, strides) = Layout::broadcast(&[&self.layout, &a.layout, &b.layout])
+            .ok_or_else(|| {
+                TensorError::InvalidShape(format!(
+                    "dimensions {:?}, {:?}, and {:?} are not broadcast-compatible",
+                    self.dimensions(),
+                    a.dimensions(),
+                    b.dimensions()
+                ))
+            })?;
 
-        let layout = Layout::from_dimensions(&out_dimensions)?;
+        let layout = Layout::from_dimensions(&dimensions)?;
         let buffer = self.ctx.create_buffer(layout.size())?;
 
         ops::clamp(
             &self.ctx,
             &self.buffer,
-            &min_val.buffer,
-            &max_val.buffer,
+            &a.buffer,
+            &b.buffer,
             &buffer,
-            layout.dimensions(),
             &strides[0],
             &strides[1],
             &strides[2],
-        )?;
+            layout.strides(),
+        );
 
         Ok(Self {
             buffer,
@@ -221,9 +207,11 @@ impl<T: NumericElement> Tensor<T> {
     /// # Errors
     ///
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn add(&self, other: &Self) -> Result<Self, Error> {
-        self.binary_op(other, ops::add)
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::add(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
     }
 
     /// Element-wise subtraction with broadcasting.
@@ -231,9 +219,11 @@ impl<T: NumericElement> Tensor<T> {
     /// # Errors
     ///
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn sub(&self, other: &Self) -> Result<Self, Error> {
-        self.binary_op(other, ops::sub)
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::sub(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
     }
 
     /// Element-wise multiplication with broadcasting.
@@ -241,9 +231,11 @@ impl<T: NumericElement> Tensor<T> {
     /// # Errors
     ///
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn mul(&self, other: &Self) -> Result<Self, Error> {
-        self.binary_op(other, ops::mul)
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::mul(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
     }
 
     /// Element-wise division with broadcasting.
@@ -251,9 +243,11 @@ impl<T: NumericElement> Tensor<T> {
     /// # Errors
     ///
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn div(&self, other: &Self) -> Result<Self, Error> {
-        self.binary_op(other, ops::div)
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::div(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
     }
 
     /// Element-wise maximum with broadcasting.
@@ -261,9 +255,11 @@ impl<T: NumericElement> Tensor<T> {
     /// # Errors
     ///
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn max(&self, other: &Self) -> Result<Self, Error> {
-        self.binary_op(other, ops::max)
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::max(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
     }
 
     /// Element-wise minimum with broadcasting.
@@ -271,49 +267,11 @@ impl<T: NumericElement> Tensor<T> {
     /// # Errors
     ///
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn min(&self, other: &Self) -> Result<Self, Error> {
-        self.binary_op(other, ops::min)
-    }
-
-    /// Element-wise less-than comparison with broadcasting.
-    ///
-    /// # Errors
-    ///
-    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
-    pub fn lt(&self, other: &Self) -> Result<Tensor<bool>, Error> {
-        self.binary_op(other, ops::lt)
-    }
-
-    /// Element-wise greater-than comparison with broadcasting.
-    ///
-    /// # Errors
-    ///
-    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
-    pub fn gt(&self, other: &Self) -> Result<Tensor<bool>, Error> {
-        self.binary_op(other, ops::gt)
-    }
-
-    /// Element-wise less-than-or-equal comparison with broadcasting.
-    ///
-    /// # Errors
-    ///
-    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
-    pub fn le(&self, other: &Self) -> Result<Tensor<bool>, Error> {
-        self.binary_op(other, ops::le)
-    }
-
-    /// Element-wise greater-than-or-equal comparison with broadcasting.
-    ///
-    /// # Errors
-    ///
-    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
-    pub fn ge(&self, other: &Self) -> Result<Tensor<bool>, Error> {
-        self.binary_op(other, ops::ge)
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::min(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
     }
 
     /// Element-wise equality comparison with broadcasting.
@@ -321,9 +279,11 @@ impl<T: NumericElement> Tensor<T> {
     /// # Errors
     ///
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn eq(&self, other: &Self) -> Result<Tensor<bool>, Error> {
-        self.binary_op(other, ops::eq)
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::eq(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
     }
 
     /// Element-wise inequality comparison with broadcasting.
@@ -331,9 +291,59 @@ impl<T: NumericElement> Tensor<T> {
     /// # Errors
     ///
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn ne(&self, other: &Self) -> Result<Tensor<bool>, Error> {
-        self.binary_op(other, ops::ne)
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::ne(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
+    }
+
+    /// Element-wise greater-than-or-equal comparison with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn ge(&self, other: &Self) -> Result<Tensor<bool>, Error> {
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::ge(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
+    }
+
+    /// Element-wise greater-than comparison with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn gt(&self, other: &Self) -> Result<Tensor<bool>, Error> {
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::gt(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
+    }
+
+    /// Element-wise less-than-or-equal comparison with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn le(&self, other: &Self) -> Result<Tensor<bool>, Error> {
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::le(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
+    }
+
+    /// Element-wise less-than comparison with broadcasting.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn lt(&self, other: &Self) -> Result<Tensor<bool>, Error> {
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::lt(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
     }
 
     /// Max reduction along specified axes.
@@ -345,9 +355,7 @@ impl<T: NumericElement> Tensor<T> {
     /// - [`TensorError::InvalidShape`] if axes are invalid or duplicate.
     /// - [`Error::Device`] if GPU operation fails.
     pub fn max_reduce(&self, axes: &[usize]) -> Result<Self, Error> {
-        self.reduce_op(axes, |ctx, input, output, dims, axes| {
-            ops::max_reduce(ctx, input, output, dims, axes)
-        })
+        self.reduction(axes, ops::max_reduce)
     }
 
     /// Min reduction along specified axes.
@@ -359,9 +367,7 @@ impl<T: NumericElement> Tensor<T> {
     /// - [`TensorError::InvalidShape`] if axes are invalid or duplicate.
     /// - [`Error::Device`] if GPU operation fails.
     pub fn min_reduce(&self, axes: &[usize]) -> Result<Self, Error> {
-        self.reduce_op(axes, |ctx, input, output, dims, axes| {
-            ops::min_reduce(ctx, input, output, dims, axes)
-        })
+        self.reduction(axes, ops::min_reduce)
     }
 
     /// Sum reduction along specified axes.
@@ -373,9 +379,14 @@ impl<T: NumericElement> Tensor<T> {
     /// - [`TensorError::InvalidShape`] if axes are invalid or duplicate.
     /// - [`Error::Device`] if GPU operation fails.
     pub fn sum_reduce(&self, axes: &[usize], normalize: bool) -> Result<Self, Error> {
-        self.reduce_op(axes, |ctx, input, output, dims, axes| {
-            ops::sum_reduce(ctx, input, output, dims, axes, normalize)
-        })
+        self.reduction(
+            axes,
+            |ctx, input, output, dims, x_strides, y_strides, axes| {
+                ops::sum_reduce(
+                    ctx, input, output, dims, x_strides, y_strides, axes, normalize,
+                );
+            },
+        )
     }
 
     /// Mean reduction along specified axes.
@@ -390,13 +401,13 @@ impl<T: NumericElement> Tensor<T> {
         self.sum_reduce(axes, true)
     }
 
-    /// Applies a reduce operation and returns a new tensor.
-    fn reduce_op<F>(&self, axes: &[usize], op: F) -> Result<Self, Error>
+    /// Applies a reduce operation with strides and returns a new tensor.
+    fn reduction<F>(&self, axes: &[usize], op: F) -> Result<Self, Error>
     where
-        F: FnOnce(&Context, &Buffer<T>, &Buffer<T>, &[usize], &[usize]) -> Result<(), Error>,
+        F: FnOnce(&Context, &Buffer<T>, &Buffer<T>, &[usize], &[usize], &[usize], &[usize]),
     {
-        let dims = self.layout.dimensions();
-        let rank = dims.len();
+        let dimensions = self.layout.dimensions();
+        let rank = dimensions.len();
 
         let mut seen = vec![false; rank];
         for &axis in axes {
@@ -412,16 +423,24 @@ impl<T: NumericElement> Tensor<T> {
             seen[axis] = true;
         }
 
-        let out_dims: Vec<usize> = dims
+        let out_dimensions: Vec<usize> = dimensions
             .iter()
             .enumerate()
             .map(|(i, &d)| if seen[i] { 1 } else { d })
             .collect();
 
-        let layout = Layout::from_dimensions(&out_dims)?;
+        let layout = Layout::from_dimensions(&out_dimensions)?;
         let buffer = self.ctx.create_buffer(layout.size())?;
 
-        op(&self.ctx, &self.buffer, &buffer, dims, axes)?;
+        op(
+            &self.ctx,
+            &self.buffer,
+            &buffer,
+            dimensions,
+            self.layout.strides(),
+            layout.strides(),
+            axes,
+        );
 
         Ok(Self {
             buffer,
@@ -438,7 +457,7 @@ impl<T: SignedElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn abs(&self) -> Result<Self, Error> {
-        self.unary_op(ops::abs)
+        self.math_unary(ops::abs)
     }
 
     /// Computes negation element-wise.
@@ -447,7 +466,7 @@ impl<T: SignedElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn neg(&self) -> Result<Self, Error> {
-        self.unary_op(ops::neg)
+        self.math_unary(ops::neg)
     }
 
     /// Computes sign element-wise.
@@ -458,7 +477,7 @@ impl<T: SignedElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn sign(&self) -> Result<Self, Error> {
-        self.unary_op(ops::sign)
+        self.math_unary(ops::sign)
     }
 }
 
@@ -468,133 +487,15 @@ impl<T: IntegerElement> Tensor<T> {
     /// # Errors
     ///
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn rem(&self, other: &Self) -> Result<Self, Error> {
-        self.binary_op(other, ops::rem)
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::rem(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
     }
 }
 
 impl<T: FloatElement> Tensor<T> {
-    /// `ELU` activation: `y = select(x < 0, alpha * (exp(x) - 1), x)`.
-    ///
-    /// # Arguments
-    ///
-    /// * `alpha` - Slope for negative values. Default: `1.0`.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Kernel`] if operation fails.
-    /// - [`Error::Device`] if buffer allocation fails.
-    pub fn elu(&self, alpha: Option<f32>) -> Result<Self, Error> {
-        let alpha = alpha.unwrap_or(1.0);
-        self.activation(|ctx, x, y| crate::kernel::ops::elu(ctx, x, y, alpha))
-    }
-
-    /// `GELU` activation: `y = x * sigmoid(1.702 * x)`.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Kernel`] if operation fails.
-    /// - [`Error::Device`] if buffer allocation fails.
-    pub fn gelu(&self) -> Result<Self, Error> {
-        self.activation(crate::kernel::ops::gelu)
-    }
-
-    /// `LeakyReLU` activation: `y = select(x < 0, alpha * x, x)`.
-    ///
-    /// # Arguments
-    ///
-    /// * `alpha` - Slope for negative values. Default: `0.01`.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Kernel`] if operation fails.
-    /// - [`Error::Device`] if buffer allocation fails.
-    pub fn leaky_relu(&self, alpha: Option<f32>) -> Result<Self, Error> {
-        let alpha = alpha.unwrap_or(0.01);
-        self.activation(|ctx, x, y| crate::kernel::ops::leaky_relu(ctx, x, y, alpha))
-    }
-
-    /// `PReLU` activation: `y = select(x < 0, alpha * x, x)`.
-    ///
-    /// # Arguments
-    ///
-    /// * `alpha` - Learnable parameter tensor with the same shape as `self`.
-    ///
-    /// # Errors
-    ///
-    /// - [`TensorError::InvalidShape`] if shapes mismatch.
-    /// - [`Error::Kernel`] if operation fails.
-    /// - [`Error::Device`] if buffer allocation fails.
-    pub fn prelu(&self, alpha: &Self) -> Result<Self, Error> {
-        if self.dimensions() != alpha.dimensions() {
-            return Err(TensorError::InvalidShape(format!(
-                "prelu shape mismatch: {:?} vs {:?}",
-                self.dimensions(),
-                alpha.dimensions()
-            ))
-            .into());
-        }
-        self.activation(|ctx, x, y| crate::kernel::ops::prelu(ctx, x, y, &alpha.buffer))
-    }
-
-    /// `ReLU` activation: `y = max(x, 0)`.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Kernel`] if operation fails.
-    /// - [`Error::Device`] if buffer allocation fails.
-    pub fn relu(&self) -> Result<Self, Error> {
-        self.activation(crate::kernel::ops::relu)
-    }
-
-    /// `SELU` activation: `y = lambda * select(x < 0, alpha * (exp(x) - 1), x)`.
-    ///
-    /// # Arguments
-    ///
-    /// * `alpha` - Scale for negative values. Default: `1.673_263_2`.
-    /// * `lambda` - Output scale. Default: `1.050_701`.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Kernel`] if operation fails.
-    /// - [`Error::Device`] if buffer allocation fails.
-    pub fn selu(&self, alpha: Option<f32>, lambda: Option<f32>) -> Result<Self, Error> {
-        let alpha = alpha.unwrap_or(1.673_263_2);
-        let lambda = lambda.unwrap_or(1.050_701);
-        self.activation(|ctx, x, y| crate::kernel::ops::selu(ctx, x, y, alpha, lambda))
-    }
-
-    /// `Sigmoid` activation: `y = 1 / (1 + exp(-x))`.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Kernel`] if operation fails.
-    /// - [`Error::Device`] if buffer allocation fails.
-    pub fn sigmoid(&self) -> Result<Self, Error> {
-        self.activation(crate::kernel::ops::sigmoid)
-    }
-
-    /// `SiLU` activation: `y = x * sigmoid(x)`.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Kernel`] if operation fails.
-    /// - [`Error::Device`] if buffer allocation fails.
-    pub fn silu(&self) -> Result<Self, Error> {
-        self.activation(crate::kernel::ops::silu)
-    }
-
-    /// `Softplus` activation: `y = log(exp(x) + 1)`.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Kernel`] if operation fails.
-    /// - [`Error::Device`] if buffer allocation fails.
-    pub fn softplus(&self) -> Result<Self, Error> {
-        self.activation(crate::kernel::ops::softplus)
-    }
-
     /// Batched matrix multiplication with optional transposes.
     ///
     /// `A[..., m, k] × B[..., k, n] → C[..., m, n]`
@@ -679,7 +580,7 @@ impl<T: FloatElement> Tensor<T> {
             &out_dims,
             transpose_a,
             transpose_b,
-        )?;
+        );
 
         Ok(Self {
             buffer,
@@ -693,162 +594,11 @@ impl<T: FloatElement> Tensor<T> {
     /// # Errors
     ///
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn pow(&self, other: &Self) -> Result<Self, Error> {
-        self.binary_op(other, ops::pow)
-    }
-
-    /// Computes arc cosine element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn acos(&self) -> Result<Self, Error> {
-        self.unary_op(ops::acos)
-    }
-
-    /// Computes inverse hyperbolic cosine element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn acosh(&self) -> Result<Self, Error> {
-        self.unary_op(ops::acosh)
-    }
-
-    /// Computes arc sine element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn asin(&self) -> Result<Self, Error> {
-        self.unary_op(ops::asin)
-    }
-
-    /// Computes inverse hyperbolic sine element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn asinh(&self) -> Result<Self, Error> {
-        self.unary_op(ops::asinh)
-    }
-
-    /// Computes arc tangent element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn atan(&self) -> Result<Self, Error> {
-        self.unary_op(ops::atan)
-    }
-
-    /// Computes inverse hyperbolic tangent element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn atanh(&self) -> Result<Self, Error> {
-        self.unary_op(ops::atanh)
-    }
-
-    /// Computes ceiling element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn ceil(&self) -> Result<Self, Error> {
-        self.unary_op(ops::ceil)
-    }
-
-    /// Computes cosine element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn cos(&self) -> Result<Self, Error> {
-        self.unary_op(ops::cos)
-    }
-
-    /// Computes hyperbolic cosine element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn cosh(&self) -> Result<Self, Error> {
-        self.unary_op(ops::cosh)
-    }
-
-    /// Computes exponential (e^x) element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn exp(&self) -> Result<Self, Error> {
-        self.unary_op(ops::exp)
-    }
-
-    /// Computes floor element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn floor(&self) -> Result<Self, Error> {
-        self.unary_op(ops::floor)
-    }
-
-    /// Computes natural logarithm element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn log(&self) -> Result<Self, Error> {
-        self.unary_op(ops::log)
-    }
-
-    /// Computes base-2 logarithm element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn log2(&self) -> Result<Self, Error> {
-        self.unary_op(ops::log2)
-    }
-
-    /// Computes reciprocal (1/x) element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn rcp(&self) -> Result<Self, Error> {
-        self.unary_op(ops::rcp)
-    }
-
-    /// Rounds to nearest integer element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn round(&self) -> Result<Self, Error> {
-        self.unary_op(ops::round)
-    }
-
-    /// Computes reciprocal of square (1/x²) element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn rsqr(&self) -> Result<Self, Error> {
-        self.unary_op(ops::rsqr)
-    }
-
-    /// Computes reciprocal of square root (1/√x) element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn rsqrt(&self) -> Result<Self, Error> {
-        self.unary_op(ops::rsqrt)
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::pow(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
     }
 
     /// Computes sine element-wise.
@@ -857,34 +607,16 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn sin(&self) -> Result<Self, Error> {
-        self.unary_op(ops::sin)
+        self.math_unary(ops::sin)
     }
 
-    /// Computes hyperbolic sine element-wise.
+    /// Computes cosine element-wise.
     ///
     /// # Errors
     ///
     /// - [`Error::Device`] if operation fails.
-    pub fn sinh(&self) -> Result<Self, Error> {
-        self.unary_op(ops::sinh)
-    }
-
-    /// Computes square (x²) element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn sqr(&self) -> Result<Self, Error> {
-        self.unary_op(ops::sqr)
-    }
-
-    /// Computes square root element-wise.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::Device`] if operation fails.
-    pub fn sqrt(&self) -> Result<Self, Error> {
-        self.unary_op(ops::sqrt)
+    pub fn cos(&self) -> Result<Self, Error> {
+        self.math_unary(ops::cos)
     }
 
     /// Computes tangent element-wise.
@@ -893,7 +625,52 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn tan(&self) -> Result<Self, Error> {
-        self.unary_op(ops::tan)
+        self.math_unary(ops::tan)
+    }
+
+    /// Computes arc sine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn asin(&self) -> Result<Self, Error> {
+        self.math_unary(ops::asin)
+    }
+
+    /// Computes arc cosine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn acos(&self) -> Result<Self, Error> {
+        self.math_unary(ops::acos)
+    }
+
+    /// Computes arc tangent element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn atan(&self) -> Result<Self, Error> {
+        self.math_unary(ops::atan)
+    }
+
+    /// Computes hyperbolic sine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn sinh(&self) -> Result<Self, Error> {
+        self.math_unary(ops::sinh)
+    }
+
+    /// Computes hyperbolic cosine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn cosh(&self) -> Result<Self, Error> {
+        self.math_unary(ops::cosh)
     }
 
     /// Computes hyperbolic tangent element-wise.
@@ -902,16 +679,253 @@ impl<T: FloatElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn tanh(&self) -> Result<Self, Error> {
-        self.unary_op(ops::tanh)
+        self.math_unary(ops::tanh)
+    }
+
+    /// Computes inverse hyperbolic sine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn asinh(&self) -> Result<Self, Error> {
+        self.math_unary(ops::asinh)
+    }
+
+    /// Computes inverse hyperbolic cosine element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn acosh(&self) -> Result<Self, Error> {
+        self.math_unary(ops::acosh)
+    }
+
+    /// Computes inverse hyperbolic tangent element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn atanh(&self) -> Result<Self, Error> {
+        self.math_unary(ops::atanh)
+    }
+
+    /// Computes exponential (e^x) element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn exp(&self) -> Result<Self, Error> {
+        self.math_unary(ops::exp)
+    }
+
+    /// Computes natural logarithm element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn log(&self) -> Result<Self, Error> {
+        self.math_unary(ops::log)
+    }
+
+    /// Computes base-2 logarithm element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn log2(&self) -> Result<Self, Error> {
+        self.math_unary(ops::log2)
+    }
+
+    /// Computes square (x²) element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn sqr(&self) -> Result<Self, Error> {
+        self.math_unary(ops::sqr)
+    }
+
+    /// Computes square root element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn sqrt(&self) -> Result<Self, Error> {
+        self.math_unary(ops::sqrt)
+    }
+
+    /// Computes reciprocal of square (1/x²) element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn rsqr(&self) -> Result<Self, Error> {
+        self.math_unary(ops::rsqr)
+    }
+
+    /// Computes reciprocal of square root (1/√x) element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn rsqrt(&self) -> Result<Self, Error> {
+        self.math_unary(ops::rsqrt)
+    }
+
+    /// Computes reciprocal (1/x) element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn rcp(&self) -> Result<Self, Error> {
+        self.math_unary(ops::rcp)
+    }
+
+    /// Computes ceiling element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn ceil(&self) -> Result<Self, Error> {
+        self.math_unary(ops::ceil)
+    }
+
+    /// Computes floor element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn floor(&self) -> Result<Self, Error> {
+        self.math_unary(ops::floor)
+    }
+
+    /// Rounds to nearest integer element-wise.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub fn round(&self) -> Result<Self, Error> {
+        self.math_unary(ops::round)
+    }
+
+    /// `ELU` activation: `y = x < 0 ? α(eˣ - 1) : x`.
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - Slope for negative values. Default: `1.0`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn elu(&self, alpha: Option<f32>) -> Result<Self, Error> {
+        let alpha = alpha.unwrap_or(1.0);
+        self.nn_activation(|ctx, x, y| ops::elu(ctx, x, y, alpha))
+    }
+
+    /// `GELU` activation: `y = x · σ(1.702x)`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn gelu(&self) -> Result<Self, Error> {
+        self.nn_activation(ops::gelu)
+    }
+
+    /// `Leaky ReLU` activation: `y = x < 0 ? αx : x`.
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - Slope for negative values. Default: `0.01`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn leaky_relu(&self, alpha: Option<f32>) -> Result<Self, Error> {
+        let alpha = alpha.unwrap_or(0.01);
+        self.nn_activation(|ctx, x, y| ops::leaky_relu(ctx, x, y, alpha))
+    }
+
+    /// `PReLU` activation: `y = x < 0 ? αx : x`.
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - Learnable parameter tensor with the same shape as `self`.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes mismatch.
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn prelu(&self, alpha: &Self) -> Result<Self, Error> {
+        if self.dimensions() != alpha.dimensions() {
+            return Err(TensorError::InvalidShape(format!(
+                "prelu shape mismatch: {:?} vs {:?}",
+                self.dimensions(),
+                alpha.dimensions()
+            ))
+            .into());
+        }
+        self.nn_activation(|ctx, x, y| ops::prelu(ctx, x, y, &alpha.buffer))
+    }
+
+    /// `ReLU` activation: `y = max(x, 0)`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn relu(&self) -> Result<Self, Error> {
+        self.nn_activation(ops::relu)
+    }
+
+    /// `SELU` activation: `y = λ(x < 0 ? α(eˣ - 1) : x)`.
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` - Scale for negative values. Default: `1.673_263_2`.
+    /// * `lambda` - Output scale. Default: `1.050_701`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn selu(&self, alpha: Option<f32>, lambda: Option<f32>) -> Result<Self, Error> {
+        let alpha = alpha.unwrap_or(1.673_263_2);
+        let lambda = lambda.unwrap_or(1.050_701);
+        self.nn_activation(|ctx, x, y| ops::selu(ctx, x, y, alpha, lambda))
+    }
+
+    /// `Sigmoid` activation: `y = 1/(1 + e⁻ˣ)`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn sigmoid(&self) -> Result<Self, Error> {
+        self.nn_activation(ops::sigmoid)
+    }
+
+    /// `SiLU` activation: `y = x · σ(x)`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn silu(&self) -> Result<Self, Error> {
+        self.nn_activation(ops::silu)
+    }
+
+    /// `Softplus` activation: `y = ln(eˣ + 1)`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn softplus(&self) -> Result<Self, Error> {
+        self.nn_activation(ops::softplus)
     }
 
     /// Applies an activation operation.
-    fn activation(
+    fn nn_activation(
         &self,
-        op: impl FnOnce(&Context, &Buffer<T>, &Buffer<T>) -> Result<(), Error>,
+        op: impl FnOnce(&Context, &Buffer<T>, &Buffer<T>),
     ) -> Result<Self, Error> {
         let buffer = self.ctx.create_buffer(self.buffer.len())?;
-        op(&self.ctx, &self.buffer, &buffer)?;
+        op(&self.ctx, &self.buffer, &buffer);
         Ok(Self {
             buffer,
             layout: self.layout.clone(),
@@ -921,14 +935,61 @@ impl<T: FloatElement> Tensor<T> {
 }
 
 impl<T: LogicalElement> Tensor<T> {
+    /// Selects elements from `a` or `b` based on condition.
+    ///
+    /// For each element, returns `a` where condition is true, otherwise `b`.
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
+    /// - [`Error::Device`] if buffer allocation fails.
+    pub fn select<U: NumericElement>(
+        &self,
+        a: &Tensor<U>,
+        b: &Tensor<U>,
+    ) -> Result<Tensor<U>, Error> {
+        let (dimensions, strides) = Layout::broadcast(&[&self.layout, &a.layout, &b.layout])
+            .ok_or_else(|| {
+                TensorError::InvalidShape(format!(
+                    "dimensions {:?}, {:?}, and {:?} are not broadcast-compatible",
+                    self.dimensions(),
+                    a.dimensions(),
+                    b.dimensions()
+                ))
+            })?;
+
+        let layout = Layout::from_dimensions(&dimensions)?;
+        let buffer = self.ctx.create_buffer(layout.size())?;
+
+        ops::select(
+            &self.ctx,
+            &self.buffer,
+            &a.buffer,
+            &b.buffer,
+            &buffer,
+            &strides[0],
+            &strides[1],
+            &strides[2],
+            layout.strides(),
+        );
+
+        Ok(Tensor {
+            buffer,
+            layout,
+            ctx: self.ctx.clone(),
+        })
+    }
+
     /// Element-wise logical AND with broadcasting.
     ///
     /// # Errors
     ///
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn and(&self, other: &Self) -> Result<Self, Error> {
-        self.binary_op(other, ops::and)
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::and(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
     }
 
     /// Element-wise logical OR with broadcasting.
@@ -936,9 +997,11 @@ impl<T: LogicalElement> Tensor<T> {
     /// # Errors
     ///
     /// - [`TensorError::InvalidShape`] if shapes are not broadcast-compatible.
-    /// - [`Error::Device`] if GPU operation fails.
+    /// - [`Error::Device`] if buffer allocation fails.
     pub fn or(&self, other: &Self) -> Result<Self, Error> {
-        self.binary_op(other, ops::or)
+        self.math_binary(other, |ctx, a, b, c, dimensions, a_strides, b_strides| {
+            ops::or(ctx, a, b, c, dimensions, a_strides, b_strides);
+        })
     }
 
     /// Computes logical NOT element-wise.
@@ -947,6 +1010,6 @@ impl<T: LogicalElement> Tensor<T> {
     ///
     /// - [`Error::Device`] if operation fails.
     pub fn not(&self) -> Result<Self, Error> {
-        self.unary_op(ops::not)
+        self.math_unary(ops::not)
     }
 }

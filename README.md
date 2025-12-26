@@ -14,16 +14,18 @@ A lightweight ML framework built from scratch in Rust with GPU-first architectur
 - Automatic compute pipeline caching
 - No unsafe code
 
+## Elements
+
+| Type | Numeric | Signed | Integer | Float | Logical |
+|------|---------|--------|---------|-------|---------|
+| `f32` | ✓ | ✓ | | ✓ | |
+| `i32` | ✓ | ✓ | ✓ | | |
+| `u32` | ✓ | | ✓ | | |
+| `bool` | | | | | ✓ |
+
 ## Tensor
 
 N-dimensional array with GPU-accelerated operations and automatic broadcasting.
-
-## Types
-
-- `f32` - 32-bit floating point
-- `i32` - 32-bit signed integer
-- `u32` - 32-bit unsigned integer
-- `bool` - Boolean
 
 ## Examples
 

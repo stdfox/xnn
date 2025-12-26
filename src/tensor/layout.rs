@@ -1,5 +1,9 @@
 //! Tensor memory layout with dimensions, strides, and offset.
 
+use alloc::boxed::Box;
+use alloc::vec;
+use alloc::vec::Vec;
+
 use crate::Error;
 use crate::error::TensorError;
 
@@ -62,6 +66,7 @@ impl Layout {
         if layouts.is_empty() {
             return Some((Box::new([]), Vec::new()));
         }
+
         if layouts.len() == 1 {
             return Some((
                 layouts[0].dimensions.clone(),

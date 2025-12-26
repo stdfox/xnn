@@ -1,15 +1,13 @@
 //! Tensor integration tests.
 
-mod activation;
-mod binary;
-mod clamp;
 mod constant;
 mod copy;
 mod from_shape_slice;
 mod from_slice;
-mod matrix;
-mod reduce;
-mod unary;
+mod linalg;
+mod math;
+mod nn;
+mod reduction;
 
 use core::fmt::Debug;
 
@@ -37,4 +35,13 @@ pub(crate) fn assert_tensor_eq<T: Element + PartialEq + Debug>(
 ) {
     assert_eq!(result.dimensions(), expected.dimensions());
     assert_eq!(result.to_vec().unwrap(), expected.to_vec().unwrap());
+}
+
+/// Asserts two float slices are approximately equal.
+#[track_caller]
+pub(crate) fn assert_vec_relative_eq(actual: &[f32], expected: &[f32], epsilon: f32) {
+    assert_eq!(actual.len(), expected.len(), "length mismatch");
+    for (a, e) in actual.iter().zip(expected.iter()) {
+        approx::assert_relative_eq!(a, e, epsilon = epsilon);
+    }
 }

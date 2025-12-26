@@ -1,13 +1,17 @@
 //! GPU context management for buffer and pipeline operations.
 
-use alloc::sync::Arc;
 use core::any::TypeId;
-use std::sync::RwLock;
 
+use alloc::borrow::ToOwned as _;
+use alloc::format;
+use alloc::string::String;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+
+use spin::RwLock;
 use wgpu::naga::FastHashMap;
 use wgpu::util::DeviceExt as _;
 
-use crate::kernel::KernelCompiler;
 use crate::{Buffer, Element, Error};
 
 /// Default `max_storage_buffer_binding_size` (128 MiB).
@@ -20,7 +24,6 @@ type PipelineCache = RwLock<FastHashMap<TypeId, Arc<wgpu::ComputePipeline>>>;
 struct ContextInner {
     device: wgpu::Device,
     queue: wgpu::Queue,
-    compiler: KernelCompiler,
     cache: PipelineCache,
 }
 
@@ -69,7 +72,8 @@ impl Context {
             ..Default::default()
         });
 
-        let adapters: Vec<_> = instance.enumerate_adapters(wgpu::Backends::all());
+        let adapters: Vec<_> =
+            pollster::block_on(instance.enumerate_adapters(wgpu::Backends::all()));
         let adapter = adapters
             .into_iter()
             .nth(adapter_index)
@@ -84,7 +88,6 @@ impl Context {
         let inner = ContextInner {
             device: device.clone(),
             queue: queue.clone(),
-            compiler: KernelCompiler::new(device),
             cache: RwLock::new(FastHashMap::default()),
         };
 
@@ -239,34 +242,20 @@ impl Context {
     }
 
     /// Gets or creates a cached compute pipeline.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::Device`] if cache lock is poisoned.
     pub(crate) fn get_or_create_pipeline(
         &self,
         type_id: TypeId,
         shader: impl FnOnce() -> String,
         label: &'static str,
-    ) -> Result<Arc<wgpu::ComputePipeline>, Error> {
-        {
-            let cache = self
-                .inner
-                .cache
-                .read()
-                .map_err(|e| Error::Device(format!("cache lock poisoned: {e}")))?;
-            if let Some(pipeline) = cache.get(&type_id) {
-                return Ok(Arc::clone(pipeline));
-            }
+    ) -> Arc<wgpu::ComputePipeline> {
+        if let Some(pipeline) = self.inner.cache.read().get(&type_id) {
+            return Arc::clone(pipeline);
         }
 
-        let mut cache = self
-            .inner
-            .cache
-            .write()
-            .map_err(|e| Error::Device(format!("cache lock poisoned: {e}")))?;
+        let mut cache = self.inner.cache.write();
+
         if let Some(pipeline) = cache.get(&type_id) {
-            return Ok(Arc::clone(pipeline));
+            return Arc::clone(pipeline);
         }
 
         let shader_module = self
@@ -290,7 +279,7 @@ impl Context {
 
         cache.insert(type_id, Arc::clone(&pipeline));
 
-        Ok(pipeline)
+        pipeline
     }
 
     /// Returns the wgpu device.
@@ -301,11 +290,6 @@ impl Context {
     /// Returns the wgpu queue.
     pub(crate) fn queue(&self) -> &wgpu::Queue {
         &self.inner.queue
-    }
-
-    /// Returns the kernel compiler.
-    pub(crate) fn compiler(&self) -> &KernelCompiler {
-        &self.inner.compiler
     }
 }
 

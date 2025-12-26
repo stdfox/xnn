@@ -2,6 +2,8 @@
 
 use core::marker::PhantomData;
 
+use alloc::format;
+
 use crate::Element;
 
 /// Typed GPU buffer for element storage.
@@ -20,6 +22,11 @@ impl<T: Element> Buffer<T> {
             len,
             _marker: PhantomData,
         }
+    }
+
+    /// Returns the buffer size in bytes.
+    pub(crate) fn byte_size(&self) -> u64 {
+        self.inner.size()
     }
 
     /// Returns the number of elements.
@@ -41,6 +48,7 @@ impl<T: Element> Buffer<T> {
 impl<T: Element> core::fmt::Debug for Buffer<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct(&format!("Buffer<{}>", T::wgsl_type()))
+            .field("byte_size", &self.inner.size())
             .field("len", &self.len)
             .finish_non_exhaustive()
     }
@@ -54,7 +62,6 @@ mod tests {
 
     #[test]
     fn test_new() {
-        // create buffer wrapper from wgpu buffer
         let ctx = Context::try_default().unwrap();
         let wgpu_buf = ctx.device().create_buffer(&wgpu::BufferDescriptor {
             label: None,
@@ -63,46 +70,45 @@ mod tests {
             mapped_at_creation: false,
         });
         let buf: Buffer<f32> = Buffer::new(wgpu_buf, 64);
-        assert_eq!(buf.inner().size(), 256);
+        assert_eq!(buf.byte_size(), 256);
         assert_eq!(buf.len(), 64);
     }
 
     #[test]
-    fn test_len() {
-        // returns element count
+    fn test_byte_size() {
         let ctx = Context::try_default().unwrap();
         let buf = ctx.create_buffer::<f32>(4).unwrap();
+        assert_eq!(buf.byte_size(), 16);
+        assert_eq!(buf.len(), 4);
+    }
+
+    #[test]
+    fn test_len() {
+        let ctx = Context::try_default().unwrap();
+        let buf = ctx.create_buffer::<f32>(4).unwrap();
+        assert_eq!(buf.byte_size(), 16);
         assert_eq!(buf.len(), 4);
     }
 
     #[test]
     fn test_is_empty() {
-        // empty buffer has zero length
         let ctx = Context::try_default().unwrap();
 
-        let empty = ctx.create_buffer::<f32>(0).unwrap();
-        assert!(empty.is_empty());
+        let buf = ctx.create_buffer::<f32>(0).unwrap();
+        assert_eq!(buf.byte_size(), 0);
+        assert!(buf.is_empty());
 
-        let non_empty = ctx.create_buffer::<f32>(4).unwrap();
-        assert!(!non_empty.is_empty());
-    }
-
-    #[test]
-    fn test_inner() {
-        // access underlying wgpu buffer
-        let ctx = Context::try_default().unwrap();
         let buf = ctx.create_buffer::<f32>(4).unwrap();
-        assert_eq!(buf.inner().size(), 16);
-        assert_eq!(buf.len(), 4);
+        assert!(!buf.is_empty());
     }
 
     #[test]
     fn test_debug() {
-        // debug output contains type and length
         let ctx = Context::try_default().unwrap();
         let buf = ctx.create_buffer::<f32>(4).unwrap();
         let debug = format!("{buf:?}");
         assert!(debug.contains("Buffer<f32>"));
+        assert!(debug.contains("byte_size"));
         assert!(debug.contains("len"));
     }
 }
