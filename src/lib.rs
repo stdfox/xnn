@@ -12,6 +12,7 @@
 //! - [`Tensor`] — N-dimensional array with GPU-accelerated operations.
 
 #![warn(missing_docs)]
+#![no_std]
 
 extern crate alloc;
 

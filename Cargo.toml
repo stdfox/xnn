@@ -13,9 +13,9 @@ exclude = [".editorconfig", ".gitignore"]
 [dependencies]
 bytemuck = { version = "~1.24", default-features = false }
 pollster = { version = "~0.4", default-features = false }
-spin = { version = "~0.10", default-features = false, features = ["rwlock"] }
+spin = { version = "~0.10", default-features = false, features = ["rwlock", "spin_mutex"] }
 thiserror = { version = "~2.0", default-features = false }
-wgpu = { version = "~28.0", default-features = true, features = ["wgsl"] }
+wgpu = { version = "~28.0", default-features = false, features = ["dx12", "gles", "metal", "vulkan", "wgsl"] }
 
 [dev-dependencies]
 approx = { version = "~0.5", default-features = false }

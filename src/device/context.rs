@@ -1,6 +1,7 @@
 //! GPU context management for buffer and pipeline operations.
 
 use core::any::TypeId;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use alloc::borrow::ToOwned as _;
 use alloc::format;
@@ -8,7 +9,7 @@ use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 
-use spin::RwLock;
+use spin::{Mutex, RwLock};
 use wgpu::naga::FastHashMap;
 use wgpu::util::DeviceExt as _;
 
@@ -218,18 +219,33 @@ impl Context {
         self.inner.queue.submit(Some(encoder.finish()));
 
         let slice = staging.slice(..);
-        let (tx, rx) = std::sync::mpsc::channel();
-        slice.map_async(wgpu::MapMode::Read, move |result| {
-            let _ = tx.send(result).map_err(|e| Error::Device(e.to_string()));
-        });
+
+        let result: Arc<Mutex<Option<Result<(), wgpu::BufferAsyncError>>>> =
+            Arc::new(Mutex::new(None));
+        let done = Arc::new(AtomicBool::new(false));
+
+        {
+            let result = Arc::clone(&result);
+            let done = Arc::clone(&done);
+            slice.map_async(wgpu::MapMode::Read, move |r| {
+                *result.lock() = Some(r);
+                done.store(true, Ordering::Release);
+            });
+        }
 
         self.inner
             .device
             .poll(wgpu::PollType::wait_indefinitely())
             .map_err(|e| Error::Device(format!("device poll failed: {e}")))?;
 
-        rx.recv()
-            .map_err(|e| Error::Device(format!("internal channel error: {e}")))?
+        while !done.load(Ordering::Acquire) {
+            core::hint::spin_loop();
+        }
+
+        result
+            .lock()
+            .take()
+            .ok_or_else(|| Error::Device("buffer mapping result not set".to_owned()))?
             .map_err(|e| Error::Device(format!("buffer mapping failed: {e}")))?;
 
         let data = slice.get_mapped_range();
