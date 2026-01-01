@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MNIST Digit Recognition</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; }
+        body { font-family: system-ui; background: #1a1a2e; color: #eee; padding: 1rem; min-height: 100vh; }
+        h1 { text-align: center; color: #0df; margin-bottom: 1rem; }
+        .toolbar { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+        .toolbar span { color: #888; }
+        .toolbar span.ready { color: #0f8; }
+        .toolbar span.error { color: #f44; }
+        .btn { padding: .5rem 1rem; background: #0df; color: #000; font-weight: bold; border-radius: 4px; cursor: pointer; }
+        .btn:hover { opacity: .9; }
+        #weights-file { display: none; }
+        .main { display: flex; justify-content: center; align-items: center; gap: 2rem; }
+        .main.disabled { opacity: .3; pointer-events: none; }
+        .col { display: flex; flex-direction: column; align-items: center; }
+        canvas { background: #000; border: 2px solid #333; border-radius: 8px; cursor: crosshair; touch-action: none; }
+        .buttons { display: flex; gap: .5rem; margin-top: .5rem; }
+        button { padding: .5rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { opacity: .9; }
+        #clear { background: #444; color: #fff; }
+        #predict { background: #0df; color: #000; font-weight: bold; }
+        .result .digit { font-size: 12rem; font-weight: bold; color: #0df; line-height: 280px; width: 180px; text-align: center; }
+        .probs { gap: .3rem; min-width: 200px; justify-content: center; }
+        .prob-row { display: flex; align-items: center; gap: .5rem; width: 100%; }
+        .prob-row .label { width: 1rem; text-align: right; color: #888; font-weight: bold; }
+        .prob-bar { flex: 1; height: 1.2rem; background: #333; border-radius: 4px; overflow: hidden; }
+        .prob-bar div { height: 100%; background: linear-gradient(90deg, #0df, #0f8); width: 0; transition: width .2s; }
+        .prob-row .value { width: 3rem; text-align: right; font-size: .8rem; color: #888; }
+    </style>
+</head>
+<body>
+    <h1>MNIST Digit Recognition</h1>
+
+    <div class="toolbar">
+        <span id="status">Loading...</span>
+        <label class="btn" for="weights-file">Load weights</label>
+        <input type="file" id="weights-file" accept=".bin">
+    </div>
+
+    <div class="main disabled" id="main">
+        <div class="col">
+            <canvas id="canvas" width="280" height="280"></canvas>
+            <div class="buttons">
+                <button id="clear">Clear</button>
+                <button id="predict">Predict</button>
+            </div>
+        </div>
+
+        <div class="col result">
+            <div class="digit" id="prediction">?</div>
+        </div>
+
+        <div class="col probs" id="probabilities"></div>
+    </div>
+
+    <script type="module">
+        import init, { predict, load_weights } from './pkg/mnist_web.js';
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const clearBtn = document.getElementById('clear');
+        const predictBtn = document.getElementById('predict');
+        const predictionEl = document.getElementById('prediction');
+        const probabilitiesEl = document.getElementById('probabilities');
+        const statusEl = document.getElementById('status');
+        const mainSection = document.getElementById('main');
+        const weightsFile = document.getElementById('weights-file');
+
+        let isDrawing = false;
+        let modelReady = false;
+
+        function initProbBars() {
+            probabilitiesEl.innerHTML = '';
+            for (let i = 0; i < 10; i++) {
+                const row = document.createElement('div');
+                row.className = 'prob-row';
+                row.innerHTML = `
+                    <span class="label">${i}</span>
+                    <div class="prob-bar"><div id="bar-${i}"></div></div>
+                    <span class="value" id="val-${i}">0%</span>
+                `;
+                probabilitiesEl.appendChild(row);
+            }
+        }
+
+        function displayResults(probs) {
+            let maxIdx = 0, maxVal = probs[0];
+            for (let i = 0; i < 10; i++) {
+                const prob = probs[i];
+                document.getElementById(`bar-${i}`).style.width = `${prob * 100}%`;
+                document.getElementById(`val-${i}`).textContent = `${(prob * 100).toFixed(1)}%`;
+                if (prob > maxVal) { maxVal = prob; maxIdx = i; }
+            }
+            predictionEl.textContent = maxIdx;
+        }
+
+        function getPixelData() {
+            const imageData = ctx.getImageData(0, 0, 280, 280);
+            const pixels = new Float32Array(784);
+            for (let y = 0; y < 28; y++) {
+                for (let x = 0; x < 28; x++) {
+                    let sum = 0;
+                    for (let dy = 0; dy < 10; dy++) {
+                        for (let dx = 0; dx < 10; dx++) {
+                            const i = ((y * 10 + dy) * 280 + (x * 10 + dx)) * 4;
+                            sum += imageData.data[i + 3];
+                        }
+                    }
+                    pixels[y * 28 + x] = sum / (100 * 255);
+                }
+            }
+            return pixels;
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, 280, 280);
+            predictionEl.textContent = '?';
+            for (let i = 0; i < 10; i++) {
+                document.getElementById(`bar-${i}`).style.width = '0%';
+                document.getElementById(`val-${i}`).textContent = '0%';
+            }
+        }
+
+        function startDraw(e) { isDrawing = true; draw(e); }
+        function stopDraw() { isDrawing = false; ctx.beginPath(); }
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            ctx.lineWidth = 20;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = 'white';
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        canvas.addEventListener('mousedown', startDraw);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDraw);
+        canvas.addEventListener('mouseout', stopDraw);
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); startDraw(e); });
+        canvas.addEventListener('touchmove', e => { e.preventDefault(); draw(e); });
+        canvas.addEventListener('touchend', stopDraw);
+
+        clearBtn.addEventListener('click', clearCanvas);
+
+        predictBtn.addEventListener('click', async () => {
+            if (!modelReady) return;
+            try {
+                const probs = await predict(getPixelData());
+                displayResults(probs);
+            } catch (e) {
+                statusEl.textContent = `Error: ${e}`;
+                statusEl.className = 'error';
+            }
+        });
+
+        weightsFile.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            statusEl.textContent = 'Loading...';
+            statusEl.className = '';
+            try {
+                load_weights(new Uint8Array(await file.arrayBuffer()));
+                modelReady = true;
+                mainSection.classList.remove('disabled');
+                statusEl.textContent = 'Ready';
+                statusEl.className = 'ready';
+            } catch (e) {
+                statusEl.textContent = `Error: ${e}`;
+                statusEl.className = 'error';
+            }
+        });
+
+        initProbBars();
+        init().then(() => {
+            statusEl.textContent = 'Load weights to start';
+        }).catch(e => {
+            statusEl.textContent = `Init failed: ${e}`;
+            statusEl.className = 'error';
+        });
+    </script>
+</body>
+</html>

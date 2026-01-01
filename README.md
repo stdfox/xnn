@@ -8,11 +8,15 @@ A lightweight ML framework built from scratch in Rust with GPU-first architectur
 
 ## Features
 
-- GPU acceleration via [wgpu](https://wgpu.rs/) (Vulkan, Metal, DX12)
+- GPU acceleration via [wgpu](https://wgpu.rs/) (Vulkan, Metal, DX12, WebGPU)
 - Element types: `f32`, `i32`, `u32`, `bool`
-- Cross-platform: Linux, macOS, Windows
+- Cross-platform: Linux, macOS, Windows, Web/WASM
 - Automatic compute pipeline caching
 - No unsafe code
+
+## Tensor
+
+N-dimensional array with GPU-accelerated operations and automatic broadcasting.
 
 ## Elements
 
@@ -23,11 +27,26 @@ A lightweight ML framework built from scratch in Rust with GPU-first architectur
 | `u32` | ✓ | | ✓ | | |
 | `bool` | | | | | ✓ |
 
-## Tensor
-
-N-dimensional array with GPU-accelerated operations and automatic broadcasting.
-
 ## Examples
+
+### MNIST Training
+
+Trains a fully-connected network on the MNIST dataset.
+
+```sh
+cd examples/mnist-train
+cargo run --release
+```
+
+### MNIST Web
+
+Interactive digit recognition in the browser using WebGPU and WASM.
+
+```sh
+cd examples/mnist-web
+wasm-pack build --target web
+python3 -m http.server
+```
 
 ### Linear regression
 

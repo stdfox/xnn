@@ -105,11 +105,21 @@ impl<T: Element> Tensor<T> {
         self.layout.dimensions()
     }
 
+    /// Asynchronously copies tensor data from GPU to CPU.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::Device`] if operation fails.
+    pub async fn to_vec_async(&self) -> Result<Vec<T>, Error> {
+        self.ctx.read_buffer_async(&self.buffer).await
+    }
+
     /// Copies tensor data from GPU to CPU.
     ///
     /// # Errors
     ///
     /// - [`Error::Device`] if operation fails.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn to_vec(&self) -> Result<Vec<T>, Error> {
         self.ctx.read_buffer(&self.buffer)
     }

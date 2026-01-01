@@ -1,7 +1,6 @@
 //! GPU context management for buffer and pipeline operations.
 
 use core::any::TypeId;
-use core::sync::atomic::{AtomicBool, Ordering};
 
 use alloc::borrow::ToOwned as _;
 use alloc::format;
@@ -9,7 +8,7 @@ use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 
-use spin::{Mutex, RwLock};
+use spin::RwLock;
 use wgpu::naga::FastHashMap;
 use wgpu::util::DeviceExt as _;
 
@@ -34,19 +33,52 @@ pub struct Context {
 }
 
 impl Context {
+    /// Asynchronously creates a GPU context with the system default adapter.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Device`] if no suitable adapter is found.
+    pub async fn try_default_async() -> Result<Self, Error> {
+        #[cfg(target_arch = "wasm32")]
+        let backends = wgpu::Backends::BROWSER_WEBGPU;
+        #[cfg(not(target_arch = "wasm32"))]
+        let backends = wgpu::Backends::all();
+
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            backends,
+            ..Default::default()
+        });
+
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .await
+            .map_err(|_| Error::Device("no suitable adapter found".to_owned()))?;
+
+        Self::from_adapter_async(&adapter).await
+    }
+
     /// Creates a GPU context with the system default adapter.
     ///
     /// # Errors
     ///
     /// Returns [`Error::Device`] if no suitable adapter is found.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn try_default() -> Result<Self, Error> {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        pollster::block_on(Self::try_default_async())
+    }
 
-        let adapter =
-            pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
-                .map_err(|_| Error::Device("no suitable adapter found".to_owned()))?;
+    /// Asynchronously creates a GPU context from a wgpu adapter.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Device`] if device creation fails.
+    pub async fn from_adapter_async(adapter: &wgpu::Adapter) -> Result<Self, Error> {
+        let (device, queue) = adapter
+            .request_device(&wgpu::DeviceDescriptor::default())
+            .await
+            .map_err(|e| Error::Device(format!("failed to create device: {e}")))?;
 
-        Self::from_adapter(&adapter)
+        Ok(Self::from_device_queue(&device, &queue))
     }
 
     /// Creates a GPU context from a wgpu adapter.
@@ -54,12 +86,29 @@ impl Context {
     /// # Errors
     ///
     /// Returns [`Error::Device`] if device creation fails.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn from_adapter(adapter: &wgpu::Adapter) -> Result<Self, Error> {
-        let (device, queue) =
-            pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
-                .map_err(|e| Error::Device(format!("failed to create device: {e}")))?;
+        pollster::block_on(Self::from_adapter_async(adapter))
+    }
 
-        Ok(Self::from_device_queue(&device, &queue))
+    /// Asynchronously creates a GPU context from adapter index.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Device`] if adapter index is invalid or device creation fails.
+    pub async fn from_adapter_index_async(adapter_index: usize) -> Result<Self, Error> {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::all(),
+            ..Default::default()
+        });
+
+        let adapters: Vec<_> = instance.enumerate_adapters(wgpu::Backends::all()).await;
+        let adapter = adapters
+            .into_iter()
+            .nth(adapter_index)
+            .ok_or_else(|| Error::Device(format!("no adapter at index {adapter_index}")))?;
+
+        Self::from_adapter_async(&adapter).await
     }
 
     /// Creates a GPU context from adapter index.
@@ -67,20 +116,9 @@ impl Context {
     /// # Errors
     ///
     /// Returns [`Error::Device`] if adapter index is invalid or device creation fails.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn from_adapter_index(adapter_index: usize) -> Result<Self, Error> {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
-            ..Default::default()
-        });
-
-        let adapters: Vec<_> =
-            pollster::block_on(instance.enumerate_adapters(wgpu::Backends::all()));
-        let adapter = adapters
-            .into_iter()
-            .nth(adapter_index)
-            .ok_or_else(|| Error::Device(format!("no adapter at index {adapter_index}")))?;
-
-        Self::from_adapter(&adapter)
+        pollster::block_on(Self::from_adapter_index_async(adapter_index))
     }
 
     /// Creates a GPU context from existing wgpu device and queue.
@@ -189,14 +227,15 @@ impl Context {
             })
     }
 
-    /// Copies buffer contents from GPU to CPU memory.
-    ///
-    /// Blocks until the transfer completes.
+    /// Asynchronously copies buffer contents from GPU to CPU memory.
     ///
     /// # Errors
     ///
     /// Returns [`Error::Device`] if the read operation fails.
-    pub(crate) fn read_buffer<T: Element>(&self, buffer: &Buffer<T>) -> Result<Vec<T>, Error> {
+    pub(crate) async fn read_buffer_async<T: Element>(
+        &self,
+        buffer: &Buffer<T>,
+    ) -> Result<Vec<T>, Error> {
         if buffer.is_empty() {
             return Ok(Vec::new());
         }
@@ -219,33 +258,19 @@ impl Context {
         self.inner.queue.submit(Some(encoder.finish()));
 
         let slice = staging.slice(..);
+        let (tx, rx) = futures_channel::oneshot::channel();
+        slice.map_async(wgpu::MapMode::Read, move |result| {
+            let _ = tx.send(result);
+        });
 
-        let result: Arc<Mutex<Option<Result<(), wgpu::BufferAsyncError>>>> =
-            Arc::new(Mutex::new(None));
-        let done = Arc::new(AtomicBool::new(false));
-
-        {
-            let result = Arc::clone(&result);
-            let done = Arc::clone(&done);
-            slice.map_async(wgpu::MapMode::Read, move |r| {
-                *result.lock() = Some(r);
-                done.store(true, Ordering::Release);
-            });
-        }
-
+        #[cfg(not(target_arch = "wasm32"))]
         self.inner
             .device
             .poll(wgpu::PollType::wait_indefinitely())
             .map_err(|e| Error::Device(format!("device poll failed: {e}")))?;
 
-        while !done.load(Ordering::Acquire) {
-            core::hint::spin_loop();
-        }
-
-        result
-            .lock()
-            .take()
-            .ok_or_else(|| Error::Device("buffer mapping result not set".to_owned()))?
+        rx.await
+            .map_err(|_| Error::Device("channel closed".to_owned()))?
             .map_err(|e| Error::Device(format!("buffer mapping failed: {e}")))?;
 
         let data = slice.get_mapped_range();
@@ -255,6 +280,18 @@ impl Context {
         staging.unmap();
 
         Ok(result)
+    }
+
+    /// Copies buffer contents from GPU to CPU memory.
+    ///
+    /// Blocks until the transfer completes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Device`] if the read operation fails.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn read_buffer<T: Element>(&self, buffer: &Buffer<T>) -> Result<Vec<T>, Error> {
+        pollster::block_on(self.read_buffer_async(buffer))
     }
 
     /// Gets or creates a cached compute pipeline.

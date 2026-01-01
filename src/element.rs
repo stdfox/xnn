@@ -74,12 +74,12 @@ impl Element for f32 {
 
     #[inline]
     fn wgsl_max() -> &'static str {
-        "bitcast<f32>(0x7f800000u)"
+        "3.402823466e+38"
     }
 
     #[inline]
     fn wgsl_min() -> &'static str {
-        "bitcast<f32>(0xff800000u)"
+        "-3.402823466e+38"
     }
 
     #[inline]
@@ -113,12 +113,12 @@ impl Element for i32 {
 
     #[inline]
     fn wgsl_max() -> &'static str {
-        "bitcast<i32>(0x7fffffffu)"
+        "0x7fffffffi"
     }
 
     #[inline]
     fn wgsl_min() -> &'static str {
-        "bitcast<i32>(0x80000000u)"
+        "(-0x7fffffffi - 1i)"
     }
 
     #[inline]

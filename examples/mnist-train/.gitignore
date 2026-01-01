@@ -1,0 +1,4 @@
+# see definitions at https://git-scm.com/docs/gitignore
+/dataset
+/target
+*.bin

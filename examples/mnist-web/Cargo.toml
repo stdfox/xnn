@@ -1,0 +1,17 @@
+[package]
+name = "mnist-web"
+version = "0.1.0"
+edition = "2024"
+license-file = "../../LICENSE"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+console_error_panic_hook = { version = "~0.1", default-features = false }
+js-sys = { version = "~0.3", default-features = false }
+wasm-bindgen = { version = "~0.2", default-features = false }
+wasm-bindgen-futures = { version = "~0.4", default-features = false }
+web-sys = { version = "~0.3", default-features = false, features = ["console", "Window", "Response"] }
+xnn = { path = "../.." }
