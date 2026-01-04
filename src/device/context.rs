@@ -3,28 +3,27 @@
 use core::any::TypeId;
 
 use alloc::borrow::ToOwned as _;
-use alloc::format;
 use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 
+use bytemuck::Zeroable as _;
 use spin::RwLock;
 use wgpu::naga::FastHashMap;
 use wgpu::util::DeviceExt as _;
 
+use crate::device::allocator::Allocator;
 use crate::{Buffer, Element, Error};
-
-/// Default `max_storage_buffer_binding_size` (128 MiB).
-const MAX_STORAGE_BUFFER_SIZE: u64 = 128 * 1024 * 1024;
 
 /// Cache for compute pipelines keyed by type.
 type PipelineCache = RwLock<FastHashMap<TypeId, Arc<wgpu::ComputePipeline>>>;
 
 /// Shared inner state for [`Context`].
 struct ContextInner {
+    allocator: Arc<Allocator>,
+    pipelines: PipelineCache,
     device: wgpu::Device,
     queue: wgpu::Queue,
-    cache: PipelineCache,
 }
 
 /// GPU device context for buffer and pipeline management.
@@ -76,7 +75,7 @@ impl Context {
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor::default())
             .await
-            .map_err(|e| Error::Device(format!("failed to create device: {e}")))?;
+            .map_err(|e| Error::Device(alloc::format!("failed to create device: {e}")))?;
 
         Ok(Self::from_device_queue(&device, &queue))
     }
@@ -106,7 +105,7 @@ impl Context {
         let adapter = adapters
             .into_iter()
             .nth(adapter_index)
-            .ok_or_else(|| Error::Device(format!("no adapter at index {adapter_index}")))?;
+            .ok_or_else(|| Error::Device(alloc::format!("no adapter at index {adapter_index}")))?;
 
         Self::from_adapter_async(&adapter).await
     }
@@ -125,9 +124,10 @@ impl Context {
     #[must_use]
     pub fn from_device_queue(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
         let inner = ContextInner {
+            allocator: Arc::new(Allocator::new(device.clone())),
+            pipelines: RwLock::new(FastHashMap::default()),
             device: device.clone(),
             queue: queue.clone(),
-            cache: RwLock::new(FastHashMap::default()),
         };
 
         Self {
@@ -144,7 +144,7 @@ impl Context {
         self.inner
             .device
             .poll(wgpu::PollType::wait_indefinitely())
-            .map_err(|e| Error::Device(format!("device poll failed: {e}")))?;
+            .map_err(|e| Error::Device(alloc::format!("device poll failed: {e}")))?;
 
         Ok(())
     }
@@ -155,28 +155,13 @@ impl Context {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Device`] if buffer size exceeds max storage buffer binding size.
+    /// Returns [`Error::Device`] if buffer size exceeds device limits.
     pub(crate) fn create_buffer<T: Element>(&self, len: usize) -> Result<Buffer<T>, Error> {
-        let native_size = core::mem::size_of::<T::Native>() as u64;
-        let size = len as u64 * native_size;
-        if size > MAX_STORAGE_BUFFER_SIZE {
-            return Err(Error::Device(format!(
-                "buffer size {size} bytes exceeds limit ({MAX_STORAGE_BUFFER_SIZE} bytes)"
-            )));
-        }
+        let padded_len = len.div_ceil(4) * 4;
+        let padded_size = padded_len * T::NATIVE_SIZE;
+        let buffer = self.inner.allocator.allocate(padded_size as u64)?;
 
-        let padded_len = (len.div_ceil(4) * 4) as u64;
-        let padded_size = padded_len * native_size;
-        let buffer = self.inner.device.create_buffer(&wgpu::BufferDescriptor {
-            label: None,
-            size: padded_size,
-            usage: wgpu::BufferUsages::STORAGE
-                | wgpu::BufferUsages::COPY_SRC
-                | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        Ok(Buffer::new(buffer, len))
+        Ok(Buffer::new(Arc::clone(&self.inner.allocator), buffer, len))
     }
 
     /// Creates a GPU buffer initialized from a slice.
@@ -185,35 +170,24 @@ impl Context {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Device`] if buffer size exceeds max storage buffer binding size.
+    /// Returns [`Error::Device`] if buffer size exceeds device limits.
     pub(crate) fn create_buffer_from_slice<T: Element>(
         &self,
         data: &[T],
     ) -> Result<Buffer<T>, Error> {
-        let native_size = core::mem::size_of::<T::Native>() as u64;
-        let size = data.len() as u64 * native_size;
-        if size > MAX_STORAGE_BUFFER_SIZE {
-            return Err(Error::Device(format!(
-                "buffer size {size} bytes exceeds limit ({MAX_STORAGE_BUFFER_SIZE} bytes)"
-            )));
-        }
+        let len = data.len();
+        let padded_len = len.div_ceil(4) * 4;
+        let padded_size = padded_len * T::NATIVE_SIZE;
+        let buffer = self.inner.allocator.allocate(padded_size as u64)?;
 
-        let padded_len = data.len().div_ceil(4) * 4;
         let mut native_data: Vec<T::Native> = data.iter().map(|x| x.to_native()).collect();
-        native_data.resize(padded_len, T::Native::default());
+        native_data.resize(padded_len, T::Native::zeroed());
 
-        let buffer = self
-            .inner
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(&native_data),
-                usage: wgpu::BufferUsages::STORAGE
-                    | wgpu::BufferUsages::COPY_SRC
-                    | wgpu::BufferUsages::COPY_DST,
-            });
+        self.inner
+            .queue
+            .write_buffer(&buffer, 0, bytemuck::cast_slice(&native_data));
 
-        Ok(Buffer::new(buffer, data.len()))
+        Ok(Buffer::new(Arc::clone(&self.inner.allocator), buffer, len))
     }
 
     /// Creates a uniform buffer from a value.
@@ -240,12 +214,9 @@ impl Context {
             return Ok(Vec::new());
         }
 
-        let native_size = core::mem::size_of::<T::Native>() as u64;
-        let size = buffer.len() as u64 * native_size;
-
         let staging = self.inner.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            size,
+            size: buffer.byte_size(),
             usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -254,7 +225,7 @@ impl Context {
             .inner
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-        encoder.copy_buffer_to_buffer(buffer.inner(), 0, &staging, 0, size);
+        encoder.copy_buffer_to_buffer(buffer.inner(), 0, &staging, 0, buffer.byte_size());
         self.inner.queue.submit(Some(encoder.finish()));
 
         let slice = staging.slice(..);
@@ -267,11 +238,11 @@ impl Context {
         self.inner
             .device
             .poll(wgpu::PollType::wait_indefinitely())
-            .map_err(|e| Error::Device(format!("device poll failed: {e}")))?;
+            .map_err(|e| Error::Device(alloc::format!("device poll failed: {e}")))?;
 
         rx.await
             .map_err(|_| Error::Device("channel closed".to_owned()))?
-            .map_err(|e| Error::Device(format!("buffer mapping failed: {e}")))?;
+            .map_err(|e| Error::Device(alloc::format!("buffer mapping failed: {e}")))?;
 
         let data = slice.get_mapped_range();
         let native_data: &[T::Native] = bytemuck::cast_slice(&data);
@@ -301,11 +272,11 @@ impl Context {
         shader: impl FnOnce() -> String,
         label: &'static str,
     ) -> Arc<wgpu::ComputePipeline> {
-        if let Some(pipeline) = self.inner.cache.read().get(&type_id) {
+        if let Some(pipeline) = self.inner.pipelines.read().get(&type_id) {
             return Arc::clone(pipeline);
         }
 
-        let mut cache = self.inner.cache.write();
+        let mut cache = self.inner.pipelines.write();
 
         if let Some(pipeline) = cache.get(&type_id) {
             return Arc::clone(pipeline);
@@ -349,9 +320,10 @@ impl Context {
 impl core::fmt::Debug for Context {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Context")
+            .field("allocator", &self.inner.allocator)
+            .field("pipelines", &self.inner.pipelines)
             .field("device", &self.inner.device)
             .field("queue", &self.inner.queue)
-            .field("cache", &self.inner.cache)
             .finish()
     }
 }

@@ -5,7 +5,6 @@ use core::marker::PhantomData;
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use alloc::{format, vec};
 
 use bytemuck::{Pod, Zeroable};
 
@@ -66,7 +65,7 @@ impl<T: FloatElement> Kernel for Matmul<T> {
         let as_size = TILE_SIZE * TILE_K_PAD;
         let bs_size = TILE_K * TILE_SIZE_PAD;
 
-        format!(
+        alloc::format!(
             r"
                 const TILE: u32 = {TILE_SIZE}u;
                 const TILE_K: u32 = {TILE_K}u;
@@ -300,7 +299,7 @@ pub(crate) fn execute<T: FloatElement>(
     let out_len = batch_size * m * n;
 
     assert!(
-        c.byte_size() >= (out_len * T::NATIVE_SIZE) as u64,
+        c.capacity() >= (out_len * T::NATIVE_SIZE) as u64,
         "output buffer too small"
     );
 
@@ -323,7 +322,10 @@ pub(crate) fn execute<T: FloatElement>(
             &c_dims[..batch_rank],
         )
     } else {
-        (vec![0; MAX_BATCH_RANK], vec![0; MAX_BATCH_RANK])
+        (
+            alloc::vec![0; MAX_BATCH_RANK],
+            alloc::vec![0; MAX_BATCH_RANK],
+        )
     };
 
     let to_u32 = |x: usize| u32::try_from(x).expect("dimension exceeds max size");
@@ -381,15 +383,15 @@ pub(crate) fn execute<T: FloatElement>(
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: a.inner().as_entire_binding(),
+                    resource: a.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: b.inner().as_entire_binding(),
+                    resource: b.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: c.inner().as_entire_binding(),
+                    resource: c.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 3,
@@ -466,8 +468,8 @@ fn compute_batch_strides(
     let a_strides = compute_contiguous_strides(a_batch);
     let b_strides = compute_contiguous_strides(b_batch);
 
-    let mut a_broadcast = vec![0; batch_rank];
-    let mut b_broadcast = vec![0; batch_rank];
+    let mut a_broadcast = alloc::vec![0; batch_rank];
+    let mut b_broadcast = alloc::vec![0; batch_rank];
 
     let a_offset = batch_rank.saturating_sub(a_batch.len());
     let b_offset = batch_rank.saturating_sub(b_batch.len());
@@ -485,7 +487,7 @@ fn compute_batch_strides(
 }
 
 fn compute_contiguous_strides(dims: &[usize]) -> Vec<usize> {
-    let mut strides = vec![1; dims.len()];
+    let mut strides = alloc::vec![1; dims.len()];
     for i in (0..dims.len().saturating_sub(1)).rev() {
         strides[i] = strides[i + 1] * dims[i + 1];
     }

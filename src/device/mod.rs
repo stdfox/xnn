@@ -4,6 +4,7 @@
 //! Contexts are pooled by adapter index, automatically selecting
 //! high-performance adapters by default.
 
+mod allocator;
 mod buffer;
 mod context;
 

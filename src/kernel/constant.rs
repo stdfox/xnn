@@ -3,7 +3,6 @@
 use core::any::TypeId;
 use core::marker::PhantomData;
 
-use alloc::format;
 use alloc::string::String;
 
 use crate::kernel::{Kernel, MAX_WORKGROUPS, WORKGROUP_SIZE};
@@ -20,7 +19,7 @@ impl<T: Element> Kernel for Constant<T> {
     fn wgsl() -> String {
         let ty = T::wgsl_type();
 
-        format!(
+        alloc::format!(
             r"
                 @group(0) @binding(0) var<storage, read_write> buffer: array<vec4<{ty}>>;
                 @group(0) @binding(1) var<uniform> value: {ty};
@@ -43,7 +42,7 @@ impl<T: Element> Kernel for Constant<T> {
 ///
 /// - Output length exceeds max size
 pub(crate) fn execute<T: Element>(ctx: &Context, buffer: &Buffer<T>, value: &wgpu::Buffer) {
-    let len = u32::try_from(buffer.byte_size() / (T::NATIVE_SIZE * 4) as u64)
+    let len = u32::try_from(buffer.capacity() / (T::NATIVE_SIZE * 4) as u64)
         .expect("output length exceeds max size");
 
     if len == 0 {
@@ -62,7 +61,7 @@ pub(crate) fn execute<T: Element>(ctx: &Context, buffer: &Buffer<T>, value: &wgp
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: buffer.inner().as_entire_binding(),
+                resource: buffer.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 1,

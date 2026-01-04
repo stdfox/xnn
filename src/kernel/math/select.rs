@@ -3,10 +3,7 @@
 use core::any::TypeId;
 use core::marker::PhantomData;
 
-use alloc::format;
 use alloc::string::String;
-
-use wgpu::util::DeviceExt;
 
 use crate::element::{LogicalElement, NumericElement};
 use crate::kernel::math::Params;
@@ -26,7 +23,7 @@ impl<T: LogicalElement, U: NumericElement> Kernel for Select<T, U> {
         let zero = T::wgsl_zero();
         let val_ty = U::wgsl_type();
 
-        format!(
+        alloc::format!(
             r"
                 struct Params {{
                     rank: u32,
@@ -91,7 +88,7 @@ pub(crate) fn execute<T: LogicalElement, U: NumericElement>(
     y_strides: &[usize],
 ) {
     let byte_size = (y.len() * U::NATIVE_SIZE) as u64;
-    assert!(y.byte_size() >= byte_size, "output buffer too small");
+    assert!(y.capacity() >= byte_size, "output buffer too small");
 
     let rank = u32::try_from(y_strides.len()).expect("output rank exceeds max size");
     let len = u32::try_from(y.len()).expect("output length exceeds max size");
@@ -108,36 +105,20 @@ pub(crate) fn execute<T: LogicalElement, U: NumericElement>(
     );
 
     let x_strides = ctx
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&x_strides),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        .create_buffer_from_slice(&x_strides)
+        .expect("failed to create x_strides buffer");
 
     let a_strides = ctx
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&a_strides),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        .create_buffer_from_slice(&a_strides)
+        .expect("failed to create a_strides buffer");
 
     let b_strides = ctx
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&b_strides),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        .create_buffer_from_slice(&b_strides)
+        .expect("failed to create b_strides buffer");
 
     let y_strides = ctx
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&y_strides),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        .create_buffer_from_slice(&y_strides)
+        .expect("failed to create y_strides buffer");
 
     let params = ctx.create_uniform_buffer(&Params { rank, len });
 
@@ -147,19 +128,19 @@ pub(crate) fn execute<T: LogicalElement, U: NumericElement>(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: x.inner().as_entire_binding(),
+                resource: x.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: a.inner().as_entire_binding(),
+                resource: a.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: b.inner().as_entire_binding(),
+                resource: b.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 3,
-                resource: y.inner().as_entire_binding(),
+                resource: y.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 4,

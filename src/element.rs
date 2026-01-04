@@ -46,12 +46,6 @@ pub trait Element: Display + Copy + Clone + 'static {
     /// Convert to native GPU representation.
     #[must_use]
     fn to_native(self) -> Self::Native;
-
-    /// Returns the zero value.
-    #[must_use]
-    fn zeroed() -> Self {
-        Self::from_native(Self::Native::zeroed())
-    }
 }
 
 impl Element for f32 {

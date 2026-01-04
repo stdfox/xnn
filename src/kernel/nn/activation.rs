@@ -3,15 +3,12 @@
 use core::any::TypeId;
 use core::marker::PhantomData;
 
-use alloc::format;
 use alloc::string::String;
-
-use bytemuck::{Pod, Zeroable};
-use wgpu::util::DeviceExt;
 
 use crate::element::FloatElement;
 use crate::kernel::{Kernel, MAX_WORKGROUPS, WORKGROUP_SIZE};
 use crate::{Buffer, Context, Element};
+use bytemuck::{Pod, Zeroable};
 
 /// Uniform parameters for activation kernels.
 #[repr(C)]
@@ -39,7 +36,7 @@ macro_rules! define_kernel {
                     let ty = T::wgsl_type();
                     let op = $op;
 
-                    format!(
+                    alloc::format!(
                         r"
                             struct Params {{ alpha: f32, lambda: f32 }}
 
@@ -80,7 +77,7 @@ macro_rules! define_kernel {
 ///
 /// # Panics
 ///
-/// - Buffer sizes do not match
+/// - Buffer lengths do not match
 fn execute<K: Kernel, T: Element>(
     ctx: &Context,
     x: &Buffer<T>,
@@ -88,10 +85,9 @@ fn execute<K: Kernel, T: Element>(
     alpha: f32,
     lambda: f32,
 ) {
-    assert_eq!(x.byte_size(), y.byte_size(), "buffer size mismatch");
+    assert_eq!(x.len(), y.len(), "buffer length mismatch");
 
-    let len = u32::try_from(x.byte_size() / (T::NATIVE_SIZE * 4) as u64)
-        .expect("output length exceeds max size");
+    let len = u32::try_from(x.len().div_ceil(4)).expect("output length exceeds max size");
 
     if len == 0 {
         return;
@@ -99,13 +95,7 @@ fn execute<K: Kernel, T: Element>(
 
     let pipeline = ctx.get_or_create_pipeline(TypeId::of::<K>(), K::wgsl, K::LABEL);
 
-    let params = ctx
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some(K::LABEL),
-            contents: bytemuck::bytes_of(&Params { alpha, lambda }),
-            usage: wgpu::BufferUsages::UNIFORM,
-        });
+    let params = ctx.create_uniform_buffer(&Params { alpha, lambda });
 
     let bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some(K::LABEL),
@@ -113,11 +103,11 @@ fn execute<K: Kernel, T: Element>(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: x.inner().as_entire_binding(),
+                resource: x.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: y.inner().as_entire_binding(),
+                resource: y.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 2,
@@ -188,7 +178,7 @@ pub(crate) mod prelu {
         fn wgsl() -> String {
             let ty = T::wgsl_type();
 
-            format!(
+            alloc::format!(
                 r"
                     @group(0) @binding(0) var<storage, read> x: array<vec4<{ty}>>;
                     @group(0) @binding(1) var<storage, read_write> y: array<vec4<{ty}>>;
@@ -215,15 +205,10 @@ pub(crate) mod prelu {
         y: &Buffer<T>,
         alpha: &Buffer<T>,
     ) {
-        assert_eq!(x.byte_size(), y.byte_size(), "buffer size mismatch");
-        assert_eq!(
-            x.byte_size(),
-            alpha.byte_size(),
-            "alpha buffer size mismatch"
-        );
+        assert_eq!(x.len(), y.len(), "buffer length mismatch");
+        assert_eq!(x.len(), alpha.len(), "alpha buffer length mismatch");
 
-        let len = u32::try_from(x.byte_size() / (T::NATIVE_SIZE * 4) as u64)
-            .expect("output length exceeds max size");
+        let len = u32::try_from(x.len().div_ceil(4)).expect("output length exceeds max size");
 
         if len == 0 {
             return;
@@ -241,15 +226,15 @@ pub(crate) mod prelu {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: x.inner().as_entire_binding(),
+                    resource: x.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: y.inner().as_entire_binding(),
+                    resource: y.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: alpha.inner().as_entire_binding(),
+                    resource: alpha.as_entire_binding(),
                 },
             ],
         });

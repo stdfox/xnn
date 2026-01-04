@@ -3,10 +3,7 @@
 use core::any::TypeId;
 use core::marker::PhantomData;
 
-use alloc::format;
 use alloc::string::String;
-
-use wgpu::util::DeviceExt;
 
 use crate::element::{FloatElement, IntegerElement, LogicalElement, NumericElement};
 use crate::kernel::math::Params;
@@ -31,7 +28,7 @@ macro_rules! define_kernel {
                     let ty = $ty;
                     let out_ty = $out_ty;
 
-                    format!(
+                    alloc::format!(
                         r"
                             struct Params {{
                                 rank: u32,
@@ -109,7 +106,7 @@ fn execute<K: Kernel, T: Element, U: Element>(
     c_strides: &[usize],
 ) {
     let byte_size = (c.len() * U::NATIVE_SIZE) as u64;
-    assert!(c.byte_size() >= byte_size, "output buffer too small");
+    assert!(c.capacity() >= byte_size, "output buffer too small");
 
     let rank = u32::try_from(c_strides.len()).expect("output rank exceeds max size");
     let len = u32::try_from(c.len()).expect("output length exceeds max size");
@@ -121,28 +118,16 @@ fn execute<K: Kernel, T: Element, U: Element>(
     let c_strides = crate::kernel::convert_strides(c_strides);
 
     let a_strides = ctx
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&a_strides),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        .create_buffer_from_slice(&a_strides)
+        .expect("failed to create a_strides buffer");
 
     let b_strides = ctx
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&b_strides),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        .create_buffer_from_slice(&b_strides)
+        .expect("failed to create b_strides buffer");
 
     let c_strides = ctx
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&c_strides),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        .create_buffer_from_slice(&c_strides)
+        .expect("failed to create c_strides buffer");
 
     let params = ctx.create_uniform_buffer(&Params { rank, len });
 
@@ -152,15 +137,15 @@ fn execute<K: Kernel, T: Element, U: Element>(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: a.inner().as_entire_binding(),
+                resource: a.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: b.inner().as_entire_binding(),
+                resource: b.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: c.inner().as_entire_binding(),
+                resource: c.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 3,

@@ -3,12 +3,10 @@
 use core::any::TypeId;
 use core::marker::PhantomData;
 
-use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 
 use bytemuck::{Pod, Zeroable};
-use wgpu::util::DeviceExt;
 
 use crate::element::NumericElement;
 use crate::kernel::{Kernel, MAX_WORKGROUPS, WORKGROUP_SIZE};
@@ -34,7 +32,7 @@ impl<T: NumericElement> Kernel for SumReduce<T> {
     fn wgsl() -> String {
         let ty = T::wgsl_type();
 
-        format!(
+        alloc::format!(
             r"
                 const WG_SIZE: u32 = {WORKGROUP_SIZE}u;
 
@@ -194,36 +192,20 @@ pub(crate) fn execute<T: NumericElement>(
     };
 
     let x_dimensions = ctx
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&x_dimensions),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        .create_buffer_from_slice(&x_dimensions)
+        .expect("failed to create x_dimensions buffer");
 
     let x_strides = ctx
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&x_strides),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        .create_buffer_from_slice(&x_strides)
+        .expect("failed to create x_strides buffer");
 
     let y_strides = ctx
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&y_strides),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        .create_buffer_from_slice(&y_strides)
+        .expect("failed to create y_strides buffer");
 
     let reduce_mask = ctx
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&reduce_mask),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        .create_buffer_from_slice(&reduce_mask)
+        .expect("failed to create reduce_mask buffer");
 
     let params = ctx.create_uniform_buffer(&params);
 
@@ -233,11 +215,11 @@ pub(crate) fn execute<T: NumericElement>(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: x.inner().as_entire_binding(),
+                resource: x.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: y.inner().as_entire_binding(),
+                resource: y.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 2,

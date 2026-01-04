@@ -3,7 +3,6 @@
 use core::any::TypeId;
 use core::marker::PhantomData;
 
-use alloc::format;
 use alloc::string::String;
 
 use crate::element::{FloatElement, LogicalElement, SignedElement};
@@ -28,7 +27,7 @@ macro_rules! define_kernel {
                     let ty = T::wgsl_type();
                     let op = $op.replace("{ty}", ty).replace("{one}", T::wgsl_one());
 
-                    format!(
+                    alloc::format!(
                         r"
                             @group(0) @binding(0) var<storage, read> x: array<vec4<{ty}>>;
                             @group(0) @binding(1) var<storage, read_write> y: array<vec4<{ty}>>;
@@ -57,13 +56,12 @@ macro_rules! define_kernel {
 ///
 /// # Panics
 ///
-/// - Buffer sizes do not match
+/// - Buffer lengths do not match
 /// - Output length exceeds max size
 fn execute<K: Kernel, T: Element>(ctx: &Context, x: &Buffer<T>, y: &Buffer<T>) {
-    assert_eq!(x.byte_size(), y.byte_size(), "buffer size mismatch");
+    assert_eq!(x.len(), y.len(), "buffer length mismatch");
 
-    let len = u32::try_from(x.byte_size() / (T::NATIVE_SIZE * 4) as u64)
-        .expect("output length exceeds max size");
+    let len = u32::try_from(x.len().div_ceil(4)).expect("output length exceeds max size");
 
     if len == 0 {
         return;
@@ -77,11 +75,11 @@ fn execute<K: Kernel, T: Element>(ctx: &Context, x: &Buffer<T>, y: &Buffer<T>) {
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: x.inner().as_entire_binding(),
+                resource: x.as_entire_binding(),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: y.inner().as_entire_binding(),
+                resource: y.as_entire_binding(),
             },
         ],
     });
