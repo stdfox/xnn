@@ -111,7 +111,7 @@ fn execute<K: Kernel, T: Element, U: Element>(
     let rank = u32::try_from(c_strides.len()).expect("output rank exceeds max size");
     let len = u32::try_from(c.len()).expect("output length exceeds max size");
 
-    let pipeline = ctx.get_or_create_pipeline(TypeId::of::<K>(), K::wgsl, K::LABEL);
+    let pipeline = ctx.create_compute_pipeline(TypeId::of::<K>(), K::wgsl, K::LABEL);
 
     let a_strides = crate::kernel::convert_strides(a_strides);
     let b_strides = crate::kernel::convert_strides(b_strides);
@@ -168,11 +168,7 @@ fn execute<K: Kernel, T: Element, U: Element>(
 
     let (x, y) = super::compute_workgroups(len);
 
-    let mut encoder = ctx
-        .device()
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some(K::LABEL),
-        });
+    let mut encoder = ctx.create_command_encoder(Some(K::LABEL));
     {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some(K::LABEL),
@@ -183,7 +179,7 @@ fn execute<K: Kernel, T: Element, U: Element>(
         pass.dispatch_workgroups(x, y, 1);
     }
 
-    ctx.queue().submit(Some(encoder.finish()));
+    ctx.submit(Some(encoder.finish()));
 }
 
 // Arithmetic

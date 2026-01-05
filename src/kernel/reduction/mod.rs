@@ -178,7 +178,7 @@ pub(crate) fn execute<K: Kernel + 'static, T: NumericElement>(
         "output length exceeds maximum workgroups"
     );
 
-    let pipeline = ctx.get_or_create_pipeline(TypeId::of::<K>(), K::wgsl, K::LABEL);
+    let pipeline = ctx.create_compute_pipeline(TypeId::of::<K>(), K::wgsl, K::LABEL);
 
     let x_dimensions = crate::kernel::convert_strides(x_dimensions);
     let x_strides = crate::kernel::convert_strides(x_strides);
@@ -248,12 +248,7 @@ pub(crate) fn execute<K: Kernel + 'static, T: NumericElement>(
         ],
     });
 
-    let mut encoder = ctx
-        .device()
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some(K::LABEL),
-        });
-
+    let mut encoder = ctx.create_command_encoder(Some(K::LABEL));
     {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some(K::LABEL),
@@ -264,5 +259,5 @@ pub(crate) fn execute<K: Kernel + 'static, T: NumericElement>(
         pass.dispatch_workgroups(len, 1, 1);
     }
 
-    ctx.queue().submit(Some(encoder.finish()));
+    ctx.submit(Some(encoder.finish()));
 }

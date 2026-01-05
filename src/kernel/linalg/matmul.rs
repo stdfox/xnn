@@ -370,7 +370,7 @@ pub(crate) fn execute<T: FloatElement>(
         return;
     }
 
-    let pipeline = ctx.get_or_create_pipeline(
+    let pipeline = ctx.create_compute_pipeline(
         TypeId::of::<Matmul<T>>(),
         Matmul::<T>::wgsl,
         Matmul::<T>::LABEL,
@@ -401,11 +401,7 @@ pub(crate) fn execute<T: FloatElement>(
         })
     };
 
-    let mut encoder = ctx
-        .device()
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some(Matmul::<T>::LABEL),
-        });
+    let mut encoder = ctx.create_command_encoder(Some(Matmul::<T>::LABEL));
 
     if batch_size <= MAX_WORKGROUPS {
         let params_buffer = ctx.create_uniform_buffer(&params);
@@ -440,7 +436,7 @@ pub(crate) fn execute<T: FloatElement>(
         }
     }
 
-    ctx.queue().submit(Some(encoder.finish()));
+    ctx.submit(Some(encoder.finish()));
 }
 
 /// Extracts matrix dimensions (rows, cols) from tensor shape.

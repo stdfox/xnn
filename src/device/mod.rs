@@ -7,6 +7,10 @@
 mod allocator;
 mod buffer;
 mod context;
+mod pipelines;
 
 pub use buffer::Buffer;
 pub use context::Context;
+
+use allocator::Allocator;
+use pipelines::PipelineCache;

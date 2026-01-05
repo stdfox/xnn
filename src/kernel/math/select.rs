@@ -98,7 +98,7 @@ pub(crate) fn execute<T: LogicalElement, U: NumericElement>(
     let b_strides = crate::kernel::convert_strides(b_strides);
     let y_strides = crate::kernel::convert_strides(y_strides);
 
-    let pipeline = ctx.get_or_create_pipeline(
+    let pipeline = ctx.create_compute_pipeline(
         TypeId::of::<Select<T, U>>(),
         Select::<T, U>::wgsl,
         Select::<T, U>::LABEL,
@@ -167,11 +167,7 @@ pub(crate) fn execute<T: LogicalElement, U: NumericElement>(
 
     let (x, y) = super::compute_workgroups(len);
 
-    let mut encoder = ctx
-        .device()
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some(Select::<T, U>::LABEL),
-        });
+    let mut encoder = ctx.create_command_encoder(Some(Select::<T, U>::LABEL));
     {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some(Select::<T, U>::LABEL),
@@ -182,5 +178,5 @@ pub(crate) fn execute<T: LogicalElement, U: NumericElement>(
         pass.dispatch_workgroups(x, y, 1);
     }
 
-    ctx.queue().submit(Some(encoder.finish()));
+    ctx.submit(Some(encoder.finish()));
 }

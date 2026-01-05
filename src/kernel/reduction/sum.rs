@@ -170,7 +170,7 @@ pub(crate) fn execute<T: NumericElement>(
         "output length exceeds maximum workgroups"
     );
 
-    let pipeline = ctx.get_or_create_pipeline(
+    let pipeline = ctx.create_compute_pipeline(
         TypeId::of::<SumReduce<T>>(),
         SumReduce::<T>::wgsl,
         SumReduce::<T>::LABEL,
@@ -244,12 +244,7 @@ pub(crate) fn execute<T: NumericElement>(
         ],
     });
 
-    let mut encoder = ctx
-        .device()
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some(SumReduce::<T>::LABEL),
-        });
-
+    let mut encoder = ctx.create_command_encoder(Some(SumReduce::<T>::LABEL));
     {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some(SumReduce::<T>::LABEL),
@@ -260,5 +255,5 @@ pub(crate) fn execute<T: NumericElement>(
         pass.dispatch_workgroups(len, 1, 1);
     }
 
-    ctx.queue().submit(Some(encoder.finish()));
+    ctx.submit(Some(encoder.finish()));
 }

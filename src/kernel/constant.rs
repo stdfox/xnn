@@ -49,7 +49,7 @@ pub(crate) fn execute<T: Element>(ctx: &Context, buffer: &Buffer<T>, value: &wgp
         return;
     }
 
-    let pipeline = ctx.get_or_create_pipeline(
+    let pipeline = ctx.create_compute_pipeline(
         TypeId::of::<Constant<T>>(),
         Constant::<T>::wgsl,
         Constant::<T>::LABEL,
@@ -74,11 +74,7 @@ pub(crate) fn execute<T: Element>(ctx: &Context, buffer: &Buffer<T>, value: &wgp
     let x = workgroups.min(MAX_WORKGROUPS);
     let y = workgroups.div_ceil(MAX_WORKGROUPS);
 
-    let mut encoder = ctx
-        .device()
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some(Constant::<T>::LABEL),
-        });
+    let mut encoder = ctx.create_command_encoder(Some(Constant::<T>::LABEL));
     {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some(Constant::<T>::LABEL),
@@ -89,5 +85,5 @@ pub(crate) fn execute<T: Element>(ctx: &Context, buffer: &Buffer<T>, value: &wgp
         pass.dispatch_workgroups(x, y, 1);
     }
 
-    ctx.queue().submit(Some(encoder.finish()));
+    ctx.submit(Some(encoder.finish()));
 }

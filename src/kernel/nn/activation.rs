@@ -93,7 +93,7 @@ fn execute<K: Kernel, T: Element>(
         return;
     }
 
-    let pipeline = ctx.get_or_create_pipeline(TypeId::of::<K>(), K::wgsl, K::LABEL);
+    let pipeline = ctx.create_compute_pipeline(TypeId::of::<K>(), K::wgsl, K::LABEL);
 
     let params = ctx.create_uniform_buffer(&Params { alpha, lambda });
 
@@ -120,11 +120,7 @@ fn execute<K: Kernel, T: Element>(
     let x = workgroups.min(MAX_WORKGROUPS);
     let y = workgroups.div_ceil(MAX_WORKGROUPS);
 
-    let mut encoder = ctx
-        .device()
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some(K::LABEL),
-        });
+    let mut encoder = ctx.create_command_encoder(Some(K::LABEL));
     {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some(K::LABEL),
@@ -135,7 +131,7 @@ fn execute<K: Kernel, T: Element>(
         pass.dispatch_workgroups(x, y, 1);
     }
 
-    ctx.queue().submit(Some(encoder.finish()));
+    ctx.submit(Some(encoder.finish()));
 }
 
 define_kernel!(
@@ -214,7 +210,7 @@ pub(crate) mod prelu {
             return;
         }
 
-        let pipeline = ctx.get_or_create_pipeline(
+        let pipeline = ctx.create_compute_pipeline(
             TypeId::of::<Prelu<T>>(),
             Prelu::<T>::wgsl,
             Prelu::<T>::LABEL,
@@ -243,11 +239,7 @@ pub(crate) mod prelu {
         let x = workgroups.min(MAX_WORKGROUPS);
         let y = workgroups.div_ceil(MAX_WORKGROUPS);
 
-        let mut encoder = ctx
-            .device()
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some(Prelu::<T>::LABEL),
-            });
+        let mut encoder = ctx.create_command_encoder(Some(Prelu::<T>::LABEL));
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some(Prelu::<T>::LABEL),
@@ -258,6 +250,6 @@ pub(crate) mod prelu {
             pass.dispatch_workgroups(x, y, 1);
         }
 
-        ctx.queue().submit(Some(encoder.finish()));
+        ctx.submit(Some(encoder.finish()));
     }
 }

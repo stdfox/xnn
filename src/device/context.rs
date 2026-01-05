@@ -8,15 +8,10 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 
 use bytemuck::Zeroable as _;
-use spin::RwLock;
-use wgpu::naga::FastHashMap;
 use wgpu::util::DeviceExt as _;
 
-use crate::device::allocator::Allocator;
+use crate::device::{Allocator, PipelineCache};
 use crate::{Buffer, Element, Error};
-
-/// Cache for compute pipelines keyed by type.
-type PipelineCache = RwLock<FastHashMap<TypeId, Arc<wgpu::ComputePipeline>>>;
 
 /// Shared inner state for [`Context`].
 struct ContextInner {
@@ -27,9 +22,7 @@ struct ContextInner {
 }
 
 /// GPU device context for buffer and pipeline management.
-pub struct Context {
-    inner: Arc<ContextInner>,
-}
+pub struct Context(Arc<ContextInner>);
 
 impl Context {
     /// Asynchronously creates a GPU context with the system default adapter.
@@ -125,14 +118,12 @@ impl Context {
     pub fn from_device_queue(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
         let inner = ContextInner {
             allocator: Arc::new(Allocator::new(device.clone())),
-            pipelines: RwLock::new(FastHashMap::default()),
+            pipelines: PipelineCache::default(),
             device: device.clone(),
             queue: queue.clone(),
         };
 
-        Self {
-            inner: Arc::new(inner),
-        }
+        Self(Arc::new(inner))
     }
 
     /// Blocks until all submitted GPU work completes.
@@ -141,7 +132,7 @@ impl Context {
     ///
     /// Returns [`Error::Device`] if device poll fails.
     pub fn poll(&self) -> Result<(), Error> {
-        self.inner
+        self.0
             .device
             .poll(wgpu::PollType::wait_indefinitely())
             .map_err(|e| Error::Device(alloc::format!("device poll failed: {e}")))?;
@@ -159,9 +150,9 @@ impl Context {
     pub(crate) fn create_buffer<T: Element>(&self, len: usize) -> Result<Buffer<T>, Error> {
         let padded_len = len.div_ceil(4) * 4;
         let padded_size = padded_len * T::NATIVE_SIZE;
-        let buffer = self.inner.allocator.allocate(padded_size as u64)?;
+        let buffer = self.0.allocator.allocate(padded_size as u64)?;
 
-        Ok(Buffer::new(Arc::clone(&self.inner.allocator), buffer, len))
+        Ok(Buffer::new(Arc::clone(&self.0.allocator), buffer, len))
     }
 
     /// Creates a GPU buffer initialized from a slice.
@@ -178,21 +169,21 @@ impl Context {
         let len = data.len();
         let padded_len = len.div_ceil(4) * 4;
         let padded_size = padded_len * T::NATIVE_SIZE;
-        let buffer = self.inner.allocator.allocate(padded_size as u64)?;
+        let buffer = self.0.allocator.allocate(padded_size as u64)?;
 
         let mut native_data: Vec<T::Native> = data.iter().map(|x| x.to_native()).collect();
         native_data.resize(padded_len, T::Native::zeroed());
 
-        self.inner
+        self.0
             .queue
             .write_buffer(&buffer, 0, bytemuck::cast_slice(&native_data));
 
-        Ok(Buffer::new(Arc::clone(&self.inner.allocator), buffer, len))
+        Ok(Buffer::new(Arc::clone(&self.0.allocator), buffer, len))
     }
 
     /// Creates a uniform buffer from a value.
     pub(crate) fn create_uniform_buffer<T: bytemuck::Pod>(&self, value: &T) -> wgpu::Buffer {
-        self.inner
+        self.0
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
@@ -214,7 +205,7 @@ impl Context {
             return Ok(Vec::new());
         }
 
-        let staging = self.inner.device.create_buffer(&wgpu::BufferDescriptor {
+        let staging = self.0.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: buffer.byte_size(),
             usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
@@ -222,11 +213,11 @@ impl Context {
         });
 
         let mut encoder = self
-            .inner
+            .0
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
         encoder.copy_buffer_to_buffer(buffer.inner(), 0, &staging, 0, buffer.byte_size());
-        self.inner.queue.submit(Some(encoder.finish()));
+        self.0.queue.submit(Some(encoder.finish()));
 
         let slice = staging.slice(..);
         let (tx, rx) = futures_channel::oneshot::channel();
@@ -235,7 +226,7 @@ impl Context {
         });
 
         #[cfg(not(target_arch = "wasm32"))]
-        self.inner
+        self.0
             .device
             .poll(wgpu::PollType::wait_indefinitely())
             .map_err(|e| Error::Device(alloc::format!("device poll failed: {e}")))?;
@@ -266,72 +257,51 @@ impl Context {
     }
 
     /// Gets or creates a cached compute pipeline.
-    pub(crate) fn get_or_create_pipeline(
+    pub(crate) fn create_compute_pipeline(
         &self,
-        type_id: TypeId,
+        id: TypeId,
         shader: impl FnOnce() -> String,
         label: &'static str,
     ) -> Arc<wgpu::ComputePipeline> {
-        if let Some(pipeline) = self.inner.pipelines.read().get(&type_id) {
-            return Arc::clone(pipeline);
-        }
+        self.0
+            .pipelines
+            .create_compute_pipeline(&self.0.device, id, shader, label)
+    }
 
-        let mut cache = self.inner.pipelines.write();
-
-        if let Some(pipeline) = cache.get(&type_id) {
-            return Arc::clone(pipeline);
-        }
-
-        let shader_module = self
-            .inner
+    /// Creates a command encoder for recording device commands.
+    pub(crate) fn create_command_encoder(
+        &self,
+        label: Option<&'static str>,
+    ) -> wgpu::CommandEncoder {
+        self.0
             .device
-            .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some(label),
-                source: wgpu::ShaderSource::Wgsl(shader().into()),
-            });
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label })
+    }
 
-        let pipeline = Arc::new(self.inner.device.create_compute_pipeline(
-            &wgpu::ComputePipelineDescriptor {
-                label: Some(label),
-                layout: None,
-                module: &shader_module,
-                entry_point: Some("main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                cache: None,
-            },
-        ));
-
-        cache.insert(type_id, Arc::clone(&pipeline));
-
-        pipeline
+    /// Submits command buffers to the device queue.
+    pub(crate) fn submit(&self, commands: impl IntoIterator<Item = wgpu::CommandBuffer>) {
+        self.0.queue.submit(commands);
     }
 
     /// Returns the wgpu device.
     pub(crate) fn device(&self) -> &wgpu::Device {
-        &self.inner.device
-    }
-
-    /// Returns the wgpu queue.
-    pub(crate) fn queue(&self) -> &wgpu::Queue {
-        &self.inner.queue
+        &self.0.device
     }
 }
 
 impl core::fmt::Debug for Context {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Context")
-            .field("allocator", &self.inner.allocator)
-            .field("pipelines", &self.inner.pipelines)
-            .field("device", &self.inner.device)
-            .field("queue", &self.inner.queue)
+            .field("allocator", &self.0.allocator)
+            .field("pipelines", &self.0.pipelines)
+            .field("device", &self.0.device)
+            .field("queue", &self.0.queue)
             .finish()
     }
 }
 
 impl Clone for Context {
     fn clone(&self) -> Self {
-        Self {
-            inner: Arc::clone(&self.inner),
-        }
+        Self(Arc::clone(&self.0))
     }
 }

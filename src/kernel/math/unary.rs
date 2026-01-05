@@ -67,7 +67,7 @@ fn execute<K: Kernel, T: Element>(ctx: &Context, x: &Buffer<T>, y: &Buffer<T>) {
         return;
     }
 
-    let pipeline = ctx.get_or_create_pipeline(TypeId::of::<K>(), K::wgsl, K::LABEL);
+    let pipeline = ctx.create_compute_pipeline(TypeId::of::<K>(), K::wgsl, K::LABEL);
 
     let bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some(K::LABEL),
@@ -86,11 +86,7 @@ fn execute<K: Kernel, T: Element>(ctx: &Context, x: &Buffer<T>, y: &Buffer<T>) {
 
     let (x, y) = super::compute_workgroups(len);
 
-    let mut encoder = ctx
-        .device()
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some(K::LABEL),
-        });
+    let mut encoder = ctx.create_command_encoder(Some(K::LABEL));
     {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some(K::LABEL),
@@ -101,7 +97,7 @@ fn execute<K: Kernel, T: Element>(ctx: &Context, x: &Buffer<T>, y: &Buffer<T>) {
         pass.dispatch_workgroups(x, y, 1);
     }
 
-    ctx.queue().submit(Some(encoder.finish()));
+    ctx.submit(Some(encoder.finish()));
 }
 
 // Arithmetic

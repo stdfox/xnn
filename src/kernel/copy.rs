@@ -19,10 +19,8 @@ pub(crate) fn execute(ctx: &Context, src: &wgpu::Buffer, dst: &wgpu::Buffer, siz
     assert!(src.size() >= size_bytes, "source buffer size mismatch");
     assert!(dst.size() >= size_bytes, "destination buffer size mismatch");
 
-    let mut encoder = ctx
-        .device()
-        .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some(LABEL) });
+    let mut encoder = ctx.create_command_encoder(Some(LABEL));
     encoder.copy_buffer_to_buffer(src, 0, dst, 0, size_bytes);
 
-    ctx.queue().submit(Some(encoder.finish()));
+    ctx.submit(Some(encoder.finish()));
 }
