@@ -6,7 +6,7 @@ macro_rules! test_select_op_float {
     ($name:ident, $T:ty, $cond:expr, $true_val:expr, $false_val:expr, $y:expr) => {
         #[test]
         fn $name() {
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let (cond_shape, cond_data) = $cond;
             let (true_shape, true_data) = $true_val;
             let (false_shape, false_data) = $false_val;
@@ -25,7 +25,7 @@ macro_rules! test_select_op_integer {
     ($name:ident, $T:ty, $cond:expr, $true_val:expr, $false_val:expr, $y:expr) => {
         #[test]
         fn $name() {
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let (cond_shape, cond_data) = $cond;
             let (true_shape, true_data) = $true_val;
             let (false_shape, false_data) = $false_val;
@@ -240,7 +240,7 @@ test_select_op_float!(
 
 #[test]
 fn test_select_error_incompatible_shapes_cond_true() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let cond = Tensor::<bool>::from_slice(&ctx, &[true, false, true]).unwrap();
     let true_val = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0]).unwrap();
     let false_val = Tensor::<f32>::from_slice(&ctx, &[0.0]).unwrap();
@@ -249,7 +249,7 @@ fn test_select_error_incompatible_shapes_cond_true() {
 
 #[test]
 fn test_select_error_incompatible_shapes_cond_false() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let cond = Tensor::<bool>::from_slice(&ctx, &[true, false, true]).unwrap();
     let true_val = Tensor::<f32>::from_slice(&ctx, &[1.0]).unwrap();
     let false_val = Tensor::<f32>::from_slice(&ctx, &[0.0, 0.0]).unwrap();
@@ -258,7 +258,7 @@ fn test_select_error_incompatible_shapes_cond_false() {
 
 #[test]
 fn test_select_error_incompatible_shapes_true_false() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let cond = Tensor::<bool>::from_slice(&ctx, &[true, false, true]).unwrap();
     let true_val = Tensor::<f32>::from_shape_slice(&ctx, &[3, 1], &[1.0, 2.0, 3.0]).unwrap();
     let false_val = Tensor::<f32>::from_shape_slice(&ctx, &[1, 2], &[0.0, 0.0]).unwrap();

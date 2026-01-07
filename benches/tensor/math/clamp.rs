@@ -6,7 +6,7 @@ use xnn::{Context, Tensor};
 use crate::{SIZES, configure, random_vec};
 
 pub(crate) fn bench_clamp(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let mut group = configure(c, "tensor/clamp");
 
     for &(name, dims) in SIZES {

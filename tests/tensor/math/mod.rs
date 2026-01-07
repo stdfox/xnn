@@ -52,7 +52,7 @@ macro_rules! test_arithmetic_op_float {
         #[test]
         fn $name() {
             use xnn::{Context, Tensor};
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let (a_shape, a_data) = $a;
             let (b_shape, b_data) = $b;
             let (c_shape, c_data) = $c;
@@ -71,7 +71,7 @@ macro_rules! test_arithmetic_op_integer {
         #[test]
         fn $name() {
             use xnn::{Context, Tensor};
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let (a_shape, a_data) = $a;
             let (b_shape, b_data) = $b;
             let (c_shape, c_data) = $c;
@@ -90,7 +90,7 @@ macro_rules! test_comparison_op {
         #[test]
         fn $name() {
             use xnn::{Context, Tensor};
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let (a_shape, a_data) = $a;
             let (b_shape, b_data) = $b;
             let (c_shape, c_data) = $c;
@@ -109,7 +109,7 @@ macro_rules! test_logical_op {
         #[test]
         fn $name() {
             use xnn::{Context, Tensor};
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let (a_shape, a_data) = $a;
             let (b_shape, b_data) = $b;
             let (c_shape, c_data) = $c;
@@ -128,7 +128,7 @@ macro_rules! test_unary_op_float {
         #[test]
         fn $name() {
             use xnn::{Context, Tensor};
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let (a_shape, a_data) = $a;
             let (b_shape, b_data) = $b;
             let a = Tensor::<f32>::from_shape_slice(&ctx, a_shape, a_data).unwrap();
@@ -145,7 +145,7 @@ macro_rules! test_unary_op_integer {
         #[test]
         fn $name() {
             use xnn::{Context, Tensor};
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let (a_shape, a_data) = $a;
             let (b_shape, b_data) = $b;
             let a = Tensor::<$T>::from_shape_slice(&ctx, a_shape, a_data).unwrap();
@@ -162,7 +162,7 @@ macro_rules! test_unary_rounding_op {
         #[test]
         fn $name() {
             use xnn::{Context, Tensor};
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let (a_shape, a_data) = $a;
             let (b_shape, b_data) = $b;
             let a = Tensor::<f32>::from_shape_slice(&ctx, a_shape, a_data).unwrap();
@@ -179,7 +179,7 @@ macro_rules! test_unary_logical_op {
         #[test]
         fn $name() {
             use xnn::{Context, Tensor};
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let (a_shape, a_data) = $a;
             let (b_shape, b_data) = $b;
             let a = Tensor::<bool>::from_shape_slice(&ctx, a_shape, a_data).unwrap();

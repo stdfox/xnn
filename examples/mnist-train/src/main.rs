@@ -350,7 +350,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Test: {} images", test.count);
 
     println!("\nInitializing GPU...");
-    let ctx = Context::try_default()?;
+    let ctx = Context::new()?;
 
     println!("Creating model...");
     let mut model = Model::new(&ctx)?;

@@ -100,7 +100,7 @@ pub async fn init() {
 
     log!("Initializing WebGPU...");
 
-    match Context::try_default_async().await {
+    match Context::new_async().await {
         Ok(ctx) => {
             CTX.with(|c| *c.borrow_mut() = Some(ctx));
             log!("WebGPU initialized! Please load weights file.");

@@ -30,11 +30,11 @@ impl Context {
     /// # Errors
     ///
     /// Returns [`Error::Device`] if no suitable adapter is found.
-    pub async fn try_default_async() -> Result<Self, Error> {
-        #[cfg(target_arch = "wasm32")]
-        let backends = wgpu::Backends::BROWSER_WEBGPU;
+    pub async fn new_async() -> Result<Self, Error> {
         #[cfg(not(target_arch = "wasm32"))]
         let backends = wgpu::Backends::all();
+        #[cfg(target_arch = "wasm32")]
+        let backends = wgpu::Backends::BROWSER_WEBGPU;
 
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends,
@@ -46,7 +46,7 @@ impl Context {
             .await
             .map_err(|_| Error::Device("no suitable adapter found".to_owned()))?;
 
-        Self::from_adapter_async(&adapter).await
+        Self::with_adapter_async(&adapter).await
     }
 
     /// Creates a GPU context with the system default adapter.
@@ -55,8 +55,8 @@ impl Context {
     ///
     /// Returns [`Error::Device`] if no suitable adapter is found.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn try_default() -> Result<Self, Error> {
-        pollster::block_on(Self::try_default_async())
+    pub fn new() -> Result<Self, Error> {
+        pollster::block_on(Self::new_async())
     }
 
     /// Asynchronously creates a GPU context from a wgpu adapter.
@@ -64,13 +64,20 @@ impl Context {
     /// # Errors
     ///
     /// Returns [`Error::Device`] if device creation fails.
-    pub async fn from_adapter_async(adapter: &wgpu::Adapter) -> Result<Self, Error> {
+    pub async fn with_adapter_async(adapter: &wgpu::Adapter) -> Result<Self, Error> {
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor::default())
             .await
             .map_err(|e| Error::Device(alloc::format!("failed to create device: {e}")))?;
 
-        Ok(Self::from_device_queue(&device, &queue))
+        let inner = ContextInner {
+            allocator: Arc::new(Allocator::new(device.clone())),
+            pipelines: PipelineCache::default(),
+            device,
+            queue,
+        };
+
+        Ok(Self(Arc::new(inner)))
     }
 
     /// Creates a GPU context from a wgpu adapter.
@@ -79,28 +86,8 @@ impl Context {
     ///
     /// Returns [`Error::Device`] if device creation fails.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn from_adapter(adapter: &wgpu::Adapter) -> Result<Self, Error> {
-        pollster::block_on(Self::from_adapter_async(adapter))
-    }
-
-    /// Asynchronously creates a GPU context from adapter index.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::Device`] if adapter index is invalid or device creation fails.
-    pub async fn from_adapter_index_async(adapter_index: usize) -> Result<Self, Error> {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::all(),
-            ..Default::default()
-        });
-
-        let adapters: Vec<_> = instance.enumerate_adapters(wgpu::Backends::all()).await;
-        let adapter = adapters
-            .into_iter()
-            .nth(adapter_index)
-            .ok_or_else(|| Error::Device(alloc::format!("no adapter at index {adapter_index}")))?;
-
-        Self::from_adapter_async(&adapter).await
+    pub fn with_adapter(adapter: &wgpu::Adapter) -> Result<Self, Error> {
+        pollster::block_on(Self::with_adapter_async(adapter))
     }
 
     /// Creates a GPU context from adapter index.
@@ -109,21 +96,21 @@ impl Context {
     ///
     /// Returns [`Error::Device`] if adapter index is invalid or device creation fails.
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn from_adapter_index(adapter_index: usize) -> Result<Self, Error> {
-        pollster::block_on(Self::from_adapter_index_async(adapter_index))
-    }
+    pub fn with_adapter_index(index: usize) -> Result<Self, Error> {
+        pollster::block_on(async {
+            let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+                backends: wgpu::Backends::all(),
+                ..Default::default()
+            });
 
-    /// Creates a GPU context from existing wgpu device and queue.
-    #[must_use]
-    pub fn from_device_queue(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
-        let inner = ContextInner {
-            allocator: Arc::new(Allocator::new(device.clone())),
-            pipelines: PipelineCache::default(),
-            device: device.clone(),
-            queue: queue.clone(),
-        };
+            let adapters: Vec<_> = instance.enumerate_adapters(wgpu::Backends::all()).await;
+            let adapter = adapters
+                .into_iter()
+                .nth(index)
+                .ok_or_else(|| Error::Device(alloc::format!("no adapter at index {index}")))?;
 
-        Self(Arc::new(inner))
+            Self::with_adapter_async(&adapter).await
+        })
     }
 
     /// Blocks until all submitted GPU work completes.

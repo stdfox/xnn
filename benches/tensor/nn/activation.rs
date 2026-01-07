@@ -8,7 +8,7 @@ use crate::{SIZES, configure, random_vec};
 macro_rules! bench_activation {
     ($name:ident, $op:ident) => {
         pub(crate) fn $name(c: &mut Criterion) {
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let mut group = configure(c, concat!("tensor/", stringify!($op)));
 
             for &(name, dims) in SIZES {
@@ -46,7 +46,7 @@ bench_activation!(bench_softplus, softplus);
 macro_rules! bench_activation_with_alpha {
     ($name:ident, $op:ident) => {
         pub(crate) fn $name(c: &mut Criterion) {
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let mut group = configure(c, concat!("tensor/", stringify!($op)));
 
             for &(name, dims) in SIZES {
@@ -79,7 +79,7 @@ bench_activation_with_alpha!(bench_elu, elu);
 bench_activation_with_alpha!(bench_leaky_relu, leaky_relu);
 
 pub(crate) fn bench_prelu(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let mut group = configure(c, "tensor/prelu");
 
     for &(name, dims) in SIZES {
@@ -108,7 +108,7 @@ pub(crate) fn bench_prelu(c: &mut Criterion) {
 }
 
 pub(crate) fn bench_selu(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let mut group = configure(c, "tensor/selu");
 
     for &(name, dims) in SIZES {

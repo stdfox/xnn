@@ -8,7 +8,7 @@ use crate::{SIZES, configure};
 macro_rules! bench_unary_op {
     ($name:ident, $op:ident) => {
         pub(crate) fn $name(c: &mut Criterion) {
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let mut group = configure(c, concat!("tensor/", stringify!($op)));
 
             for &(name, dims) in SIZES {
@@ -69,7 +69,7 @@ bench_unary_op!(bench_round, round);
 
 // Logical
 pub(crate) fn bench_not(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let mut group = configure(c, "tensor/not");
 
     for &(name, dims) in SIZES {

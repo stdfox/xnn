@@ -38,7 +38,7 @@ fn random_vec(len: usize) -> Vec<f32> {
 }
 
 pub(crate) fn bench_matmul(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let mut group = configure(c, "tensor/matmul");
 
     for &(name, m, k, n) in MATMUL_SIZES {
@@ -69,7 +69,7 @@ pub(crate) fn bench_matmul(c: &mut Criterion) {
 }
 
 pub(crate) fn bench_matmul_transpose(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let mut group = configure(c, "tensor/matmul_transpose");
 
     let m = 512;
@@ -112,7 +112,7 @@ pub(crate) fn bench_matmul_transpose(c: &mut Criterion) {
 }
 
 pub(crate) fn bench_matmul_batched(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let mut group = configure(c, "tensor/matmul_batched");
 
     for &(name, batch, m, k, n) in BATCHED_SIZES {

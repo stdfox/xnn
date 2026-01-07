@@ -6,7 +6,7 @@ macro_rules! test_clamp_op_float {
     ($name:ident, $T:ty, $x:expr, $a:expr, $b:expr, $y:expr) => {
         #[test]
         fn $name() {
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let (x_shape, x_data) = $x;
             let (a_shape, a_data) = $a;
             let (b_shape, b_data) = $b;
@@ -25,7 +25,7 @@ macro_rules! test_clamp_op_integer {
     ($name:ident, $T:ty, $x:expr, $a:expr, $b:expr, $y:expr) => {
         #[test]
         fn $name() {
-            let ctx = Context::try_default().unwrap();
+            let ctx = Context::new().unwrap();
             let (x_shape, x_data) = $x;
             let (a_shape, a_data) = $a;
             let (b_shape, b_data) = $b;
@@ -249,7 +249,7 @@ test_clamp_op_integer!(
 
 #[test]
 fn test_clamp_error_incompatible_shapes_x_a() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let x = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0, 3.0]).unwrap();
     let a = Tensor::<f32>::from_slice(&ctx, &[0.0, 0.0]).unwrap();
     let b = Tensor::<f32>::from_slice(&ctx, &[1.0]).unwrap();
@@ -258,7 +258,7 @@ fn test_clamp_error_incompatible_shapes_x_a() {
 
 #[test]
 fn test_clamp_error_incompatible_shapes_x_b() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let x = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0, 3.0]).unwrap();
     let a = Tensor::<f32>::from_slice(&ctx, &[0.0]).unwrap();
     let b = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0]).unwrap();
@@ -267,7 +267,7 @@ fn test_clamp_error_incompatible_shapes_x_b() {
 
 #[test]
 fn test_clamp_error_incompatible_shapes_a_b() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let x = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0, 3.0]).unwrap();
     let a = Tensor::<f32>::from_shape_slice(&ctx, &[3, 1], &[0.0, 0.0, 0.0]).unwrap();
     let b = Tensor::<f32>::from_shape_slice(&ctx, &[1, 2], &[1.0, 2.0]).unwrap();

@@ -62,7 +62,7 @@ fn cpu_matmul_transpose_both(a: &[f32], b: &[f32], m: usize, k: usize, n: usize)
 
 #[test]
 fn test_matmul_2d_basic() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a_data: Vec<f32> = (0..6).map(|i| i as f32).collect();
     let b_data: Vec<f32> = (0..12).map(|i| i as f32).collect();
@@ -81,7 +81,7 @@ fn test_matmul_2d_basic() {
 
 #[test]
 fn test_matmul_2d_square() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a_data = vec![1.0f32, 2.0, 3.0, 4.0];
     let b_data = vec![5.0f32, 6.0, 7.0, 8.0];
@@ -96,7 +96,7 @@ fn test_matmul_2d_square() {
 
 #[test]
 fn test_matmul_2d_transpose_a() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a_data: Vec<f32> = (0..6).map(|i| i as f32).collect();
     let b_data: Vec<f32> = (0..12).map(|i| i as f32).collect();
@@ -115,7 +115,7 @@ fn test_matmul_2d_transpose_a() {
 
 #[test]
 fn test_matmul_2d_transpose_b() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a_data: Vec<f32> = (0..6).map(|i| i as f32).collect();
     let b_data: Vec<f32> = (0..12).map(|i| i as f32).collect();
@@ -134,7 +134,7 @@ fn test_matmul_2d_transpose_b() {
 
 #[test]
 fn test_matmul_2d_transpose_both() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a_data: Vec<f32> = (0..6).map(|i| i as f32).collect();
     let b_data: Vec<f32> = (0..12).map(|i| i as f32).collect();
@@ -153,7 +153,7 @@ fn test_matmul_2d_transpose_both() {
 
 #[test]
 fn test_matmul_2d_large() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let m = 128;
     let k = 64;
@@ -176,7 +176,7 @@ fn test_matmul_2d_large() {
 
 #[test]
 fn test_matmul_3d() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let batch = 2;
     let m = 3;
@@ -205,7 +205,7 @@ fn test_matmul_3d() {
 
 #[test]
 fn test_matmul_3d_broadcast() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let m = 3;
     let k = 4;
@@ -231,7 +231,7 @@ fn test_matmul_3d_broadcast() {
 
 #[test]
 fn test_matmul_4d() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let b0 = 2;
     let b1 = 3;
@@ -259,7 +259,7 @@ fn test_matmul_4d() {
 
 #[test]
 fn test_matmul_error_rank_too_low() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0, 3.0]).unwrap();
     let b = Tensor::<f32>::from_slice(&ctx, &[4.0, 5.0, 6.0]).unwrap();
@@ -269,7 +269,7 @@ fn test_matmul_error_rank_too_low() {
 
 #[test]
 fn test_matmul_error_rank_mismatch() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a = Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &[0.0; 6]).unwrap();
     let b = Tensor::<f32>::from_shape_slice(&ctx, &[2, 3, 4], &[0.0; 24]).unwrap();
@@ -279,7 +279,7 @@ fn test_matmul_error_rank_mismatch() {
 
 #[test]
 fn test_matmul_error_dim_mismatch() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a = Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &[0.0; 6]).unwrap();
     let b = Tensor::<f32>::from_shape_slice(&ctx, &[4, 5], &[0.0; 20]).unwrap();
@@ -289,7 +289,7 @@ fn test_matmul_error_dim_mismatch() {
 
 #[test]
 fn test_matmul_error_batch_incompatible() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a = Tensor::<f32>::from_shape_slice(&ctx, &[2, 3, 4], &[0.0; 24]).unwrap();
     let b = Tensor::<f32>::from_shape_slice(&ctx, &[3, 4, 5], &[0.0; 60]).unwrap();

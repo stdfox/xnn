@@ -5,7 +5,7 @@ use xnn::{Context, Tensor};
 
 #[test]
 fn test_relu_basic() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0, 3.0, -0.5, 0.5];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.relu().unwrap();
@@ -19,7 +19,7 @@ fn test_relu_basic() {
 
 #[test]
 fn test_relu_all_negative() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![-1.0f32, -2.0, -3.0, -4.0];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.relu().unwrap();
@@ -30,7 +30,7 @@ fn test_relu_all_negative() {
 
 #[test]
 fn test_relu_all_positive() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![1.0f32, 2.0, 3.0, 4.0];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.relu().unwrap();
@@ -42,7 +42,7 @@ fn test_relu_all_positive() {
 
 #[test]
 fn test_relu_2d() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![-1.0f32, 0.0, 1.0, -2.0, 0.0, 2.0];
     let t = Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &data).unwrap();
     let result = t.relu().unwrap();
@@ -56,7 +56,7 @@ fn test_relu_2d() {
 
 #[test]
 fn test_relu_non_aligned() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data: Vec<f32> = (-21_i8..21).map(|i| f32::from(i) * 0.1).collect();
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.relu().unwrap();
@@ -70,7 +70,7 @@ fn test_relu_non_aligned() {
 
 #[test]
 fn test_relu_large() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let len = 4096 * 4096;
     let t = Tensor::<f32>::constant(&ctx, &[len], &[-1.0]).unwrap();
     let result = t.relu().unwrap();
@@ -82,7 +82,7 @@ fn test_relu_large() {
 
 #[test]
 fn test_relu_scalar() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let t = Tensor::<f32>::constant(&ctx, &[], &[-1.0]).unwrap();
     let result = t.relu().unwrap();
     assert_eq!(result.dimensions(), &[] as &[usize]);

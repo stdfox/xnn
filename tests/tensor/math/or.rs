@@ -134,7 +134,7 @@ test_logical_op!(
 #[test]
 fn test_or_error_incompatible_shapes() {
     use xnn::{Context, Tensor};
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let a = Tensor::<bool>::from_shape_slice(&ctx, &[3], &[true, false, true]).unwrap();
     let b = Tensor::<bool>::from_shape_slice(&ctx, &[4], &[true, false, true, false]).unwrap();
     assert!(a.or(&b).is_err());

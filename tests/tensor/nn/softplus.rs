@@ -9,7 +9,7 @@ fn softplus_ref(x: f32) -> f32 {
 
 #[test]
 fn test_softplus_basic() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.softplus().unwrap();
@@ -23,7 +23,7 @@ fn test_softplus_basic() {
 
 #[test]
 fn test_softplus_zero() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![0.0f32];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.softplus().unwrap();
@@ -32,7 +32,7 @@ fn test_softplus_zero() {
 
 #[test]
 fn test_softplus_positive() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![1.0f32, 2.0, 3.0, 4.0];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.softplus().unwrap();
@@ -45,7 +45,7 @@ fn test_softplus_positive() {
 
 #[test]
 fn test_softplus_negative() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![-1.0f32, -2.0, -3.0, -4.0];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.softplus().unwrap();
@@ -58,7 +58,7 @@ fn test_softplus_negative() {
 
 #[test]
 fn test_softplus_2d() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![-1.0f32, 0.0, 1.0, -2.0, 0.0, 2.0];
     let t = Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &data).unwrap();
     let result = t.softplus().unwrap();
@@ -72,7 +72,7 @@ fn test_softplus_2d() {
 
 #[test]
 fn test_softplus_non_aligned() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data: Vec<f32> = (-21_i8..21).map(|i| f32::from(i) * 0.1).collect();
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.softplus().unwrap();
@@ -86,7 +86,7 @@ fn test_softplus_non_aligned() {
 
 #[test]
 fn test_softplus_large() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let len = 4096 * 4096;
     let t = Tensor::<f32>::constant(&ctx, &[len], &[0.0]).unwrap();
     let result = t.softplus().unwrap();
@@ -98,7 +98,7 @@ fn test_softplus_large() {
 
 #[test]
 fn test_softplus_scalar() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let t = Tensor::<f32>::constant(&ctx, &[], &[0.0]).unwrap();
     let result = t.softplus().unwrap();
     assert_eq!(result.dimensions(), &[] as &[usize]);

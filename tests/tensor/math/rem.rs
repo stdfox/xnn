@@ -170,7 +170,7 @@ test_arithmetic_op_integer!(
 
 #[test]
 fn test_rem_error_incompatible_shapes() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let a = Tensor::<i32>::from_slice(&ctx, &[1, 2, 3]).unwrap();
     let b = Tensor::<i32>::from_slice(&ctx, &[1, 2, 3, 4]).unwrap();
     assert!(a.rem(&b).is_err());

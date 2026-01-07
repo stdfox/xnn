@@ -131,7 +131,7 @@ fn format_error(e: f32) -> String {
 }
 
 fn main() -> Result<(), Box<dyn core::error::Error>> {
-    let ctx = Context::try_default()?;
+    let ctx = Context::new()?;
 
     let cfg = Config {
         learning_rate: 0.5,

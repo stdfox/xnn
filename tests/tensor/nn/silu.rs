@@ -9,7 +9,7 @@ fn silu_ref(x: f32) -> f32 {
 
 #[test]
 fn test_silu_basic() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.silu().unwrap();
@@ -23,7 +23,7 @@ fn test_silu_basic() {
 
 #[test]
 fn test_silu_zero() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![0.0f32];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.silu().unwrap();
@@ -32,7 +32,7 @@ fn test_silu_zero() {
 
 #[test]
 fn test_silu_positive() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![1.0f32, 2.0, 3.0, 4.0];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.silu().unwrap();
@@ -45,7 +45,7 @@ fn test_silu_positive() {
 
 #[test]
 fn test_silu_2d() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![-1.0f32, 0.0, 1.0, -2.0, 0.0, 2.0];
     let t = Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &data).unwrap();
     let result = t.silu().unwrap();
@@ -59,7 +59,7 @@ fn test_silu_2d() {
 
 #[test]
 fn test_silu_non_aligned() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data: Vec<f32> = (-21_i8..21).map(|i| f32::from(i) * 0.1).collect();
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let result = t.silu().unwrap();
@@ -73,7 +73,7 @@ fn test_silu_non_aligned() {
 
 #[test]
 fn test_silu_large() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let len = 4096 * 4096;
     let t = Tensor::<f32>::constant(&ctx, &[len], &[0.0]).unwrap();
     let result = t.silu().unwrap();
@@ -85,7 +85,7 @@ fn test_silu_large() {
 
 #[test]
 fn test_silu_scalar() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let t = Tensor::<f32>::constant(&ctx, &[], &[0.0]).unwrap();
     let result = t.silu().unwrap();
     assert_eq!(result.dimensions(), &[] as &[usize]);

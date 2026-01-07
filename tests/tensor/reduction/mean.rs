@@ -12,7 +12,7 @@ fn assert_approx(actual: &[f32], expected: &[f32], epsilon: f32) {
 
 #[test]
 fn test_mean_reduce_2d_axis0() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a =
         Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
@@ -24,7 +24,7 @@ fn test_mean_reduce_2d_axis0() {
 
 #[test]
 fn test_mean_reduce_2d_axis1() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a =
         Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
@@ -36,7 +36,7 @@ fn test_mean_reduce_2d_axis1() {
 
 #[test]
 fn test_mean_reduce_2d_all_axes() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a =
         Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
@@ -48,7 +48,7 @@ fn test_mean_reduce_2d_all_axes() {
 
 #[test]
 fn test_mean_reduce_3d_axis0() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let data = [
         1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
@@ -66,7 +66,7 @@ fn test_mean_reduce_3d_axis0() {
 
 #[test]
 fn test_mean_reduce_3d_axis1() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let data = [
         1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
@@ -84,7 +84,7 @@ fn test_mean_reduce_3d_axis1() {
 
 #[test]
 fn test_mean_reduce_3d_axis2() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let data = [
         1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
@@ -98,7 +98,7 @@ fn test_mean_reduce_3d_axis2() {
 
 #[test]
 fn test_mean_reduce_3d_multiple_axes() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let data = [
         1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
@@ -112,7 +112,7 @@ fn test_mean_reduce_3d_multiple_axes() {
 
 #[test]
 fn test_mean_reduce_non_aligned() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a = Tensor::<f32>::from_shape_slice(
         &ctx,
@@ -129,7 +129,7 @@ fn test_mean_reduce_non_aligned() {
 #[test]
 #[allow(clippy::cast_precision_loss)]
 fn test_mean_reduce_large() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let size = 1024;
     let data: Vec<f32> = (0..size * size).map(|i| i as f32).collect();
@@ -148,7 +148,7 @@ fn test_mean_reduce_large() {
 
 #[test]
 fn test_mean_reduce_invalid_axis() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a =
         Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
@@ -159,7 +159,7 @@ fn test_mean_reduce_invalid_axis() {
 
 #[test]
 fn test_mean_reduce_duplicate_axis() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
 
     let a =
         Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();

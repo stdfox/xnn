@@ -30,7 +30,7 @@ fn random_vec(len: usize) -> Vec<f32> {
 }
 
 pub(crate) fn bench_sum_reduce(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let mut group = configure(c, "tensor/sum_reduce");
 
     for &(name, rows, cols) in REDUCE_SIZES {
@@ -55,7 +55,7 @@ pub(crate) fn bench_sum_reduce(c: &mut Criterion) {
 }
 
 pub(crate) fn bench_sum_reduce_axis0(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let mut group = configure(c, "tensor/sum_reduce/axis0");
 
     for &(name, rows, cols) in REDUCE_SIZES {
@@ -80,7 +80,7 @@ pub(crate) fn bench_sum_reduce_axis0(c: &mut Criterion) {
 }
 
 pub(crate) fn bench_sum_reduce_axis1(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let mut group = configure(c, "tensor/sum_reduce/axis1");
 
     for &(name, rows, cols) in REDUCE_SIZES {

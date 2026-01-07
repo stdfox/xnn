@@ -151,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_allocate_new_buffer() {
-        let ctx = Context::try_default().unwrap();
+        let ctx = Context::new().unwrap();
         let allocator = Allocator::new(ctx.device().clone());
 
         let buffer = allocator.allocate(1).unwrap();
@@ -162,7 +162,7 @@ mod tests {
 
     #[test]
     fn test_release_and_reuse() {
-        let ctx = Context::try_default().unwrap();
+        let ctx = Context::new().unwrap();
         let allocator = Allocator::new(ctx.device().clone());
 
         let buffer = allocator.allocate(1).unwrap();
@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn test_memory_metrics() {
-        let ctx = Context::try_default().unwrap();
+        let ctx = Context::new().unwrap();
         let allocator = Allocator::new(ctx.device().clone());
 
         assert_eq!(allocator.memory_allocated(), 0);
@@ -212,7 +212,7 @@ mod tests {
 
     #[test]
     fn test_sizes() {
-        let ctx = Context::try_default().unwrap();
+        let ctx = Context::new().unwrap();
         let allocator = Allocator::new(ctx.device().clone());
 
         let buffer = allocator.allocate(allocator.min_buffer_size - 1).unwrap();

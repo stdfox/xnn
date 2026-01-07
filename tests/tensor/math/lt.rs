@@ -265,7 +265,7 @@ test_comparison_op!(
 
 #[test]
 fn test_lt_error_incompatible_shapes() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let a = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0, 3.0]).unwrap();
     let b = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0, 3.0, 4.0]).unwrap();
     assert!(a.lt(&b).is_err());

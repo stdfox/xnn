@@ -6,7 +6,7 @@ use xnn::{Context, Tensor};
 use crate::{SIZES, configure};
 
 pub(crate) fn bench_constant(c: &mut Criterion) {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let mut group = configure(c, "tensor/constant");
 
     for &(name, dims) in SIZES {

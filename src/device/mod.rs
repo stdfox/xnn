@@ -1,8 +1,8 @@
 //! GPU device and buffer management.
 //!
-//! Provides [`Context`] for GPU operations and [`Buffer`] for GPU memory.
-//! Contexts are pooled by adapter index, automatically selecting
-//! high-performance adapters by default.
+//! Provides [`Context`] for GPU operations and [`Buffer`] for typed GPU memory.
+//! Context wraps wgpu device/queue with buffer allocation pooling and compute
+//! pipeline caching.
 
 mod allocator;
 mod buffer;

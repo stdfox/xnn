@@ -7,7 +7,7 @@ use xnn::{Context, Tensor};
 
 #[test]
 fn test_copy_f32() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![1.0, 2.0, 3.0, 4.0];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let copy = t.copy().unwrap();
@@ -19,7 +19,7 @@ fn test_copy_f32() {
 
 #[test]
 fn test_copy_i32() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![1, 2, 3, 4];
     let t = Tensor::<i32>::from_slice(&ctx, &data).unwrap();
     let copy = t.copy().unwrap();
@@ -29,7 +29,7 @@ fn test_copy_i32() {
 
 #[test]
 fn test_copy_u32() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![1u32, 2, 3, 4];
     let t = Tensor::<u32>::from_slice(&ctx, &data).unwrap();
     let copy = t.copy().unwrap();
@@ -39,7 +39,7 @@ fn test_copy_u32() {
 
 #[test]
 fn test_copy_2d() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
     let t = Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &data).unwrap();
     let copy = t.copy().unwrap();
@@ -51,7 +51,7 @@ fn test_copy_2d() {
 
 #[test]
 fn test_copy_non_aligned() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data: Vec<f32> = (0_u8..42).map(f32::from).collect();
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let copy = t.copy().unwrap();
@@ -63,7 +63,7 @@ fn test_copy_non_aligned() {
 
 #[test]
 fn test_copy_large() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let len = 4096 * 4096;
     let t = Tensor::<f32>::constant(&ctx, &[len], &[PI]).unwrap();
     let copy = t.copy().unwrap();
@@ -75,7 +75,7 @@ fn test_copy_large() {
 
 #[test]
 fn test_copy_scalar() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let t = Tensor::<f32>::constant(&ctx, &[], &[42.0]).unwrap();
     let copy = t.copy().unwrap();
     assert_eq!(copy.dimensions(), &[] as &[usize]);
@@ -84,7 +84,7 @@ fn test_copy_scalar() {
 
 #[test]
 fn test_copy_independence() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![1.0, 2.0, 3.0, 4.0];
     let original = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
     let copy = original.copy().unwrap();

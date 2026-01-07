@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let ctx = Context::try_default().unwrap();
+        let ctx = Context::new().unwrap();
 
         let buf = ctx.create_buffer::<f32>(4).unwrap();
         assert_eq!(buf.byte_size(), 16);
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_is_empty() {
-        let ctx = Context::try_default().unwrap();
+        let ctx = Context::new().unwrap();
 
         let buf = ctx.create_buffer::<f32>(0).unwrap();
         assert!(buf.is_empty());
@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn test_debug() {
-        let ctx = Context::try_default().unwrap();
+        let ctx = Context::new().unwrap();
         let buf = ctx.create_buffer::<f32>(4).unwrap();
         let debug = alloc::format!("{buf:?}");
         assert!(debug.contains("Buffer<f32>"));

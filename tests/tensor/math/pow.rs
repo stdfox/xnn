@@ -99,7 +99,7 @@ test_arithmetic_op_float!(
 
 #[test]
 fn test_pow_error_incompatible_shapes() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let a = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0, 3.0]).unwrap();
     let b = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0, 3.0, 4.0]).unwrap();
     assert!(a.pow(&b).is_err());

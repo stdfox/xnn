@@ -3,7 +3,7 @@
 macro_rules! bench_binary_op {
     ($name:ident, $op:ident, $ty:ty) => {
         pub(crate) fn $name(c: &mut criterion::Criterion) {
-            let ctx = xnn::Context::try_default().unwrap();
+            let ctx = xnn::Context::new().unwrap();
             let mut group = crate::configure(c, concat!("tensor/", stringify!($op)));
 
             for &(name, dims) in crate::SIZES {

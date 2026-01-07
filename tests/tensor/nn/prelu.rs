@@ -9,7 +9,7 @@ fn prelu_ref(x: f32, alpha: f32) -> f32 {
 
 #[test]
 fn test_prelu_basic() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0];
     let alpha_data = vec![0.1f32, 0.2, 0.3, 0.4, 0.5];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
@@ -29,7 +29,7 @@ fn test_prelu_basic() {
 
 #[test]
 fn test_prelu_uniform_alpha() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![-2.0f32, -1.0, 0.0, 1.0, 2.0];
     let alpha_data = vec![0.25f32; 5];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
@@ -44,7 +44,7 @@ fn test_prelu_uniform_alpha() {
 
 #[test]
 fn test_prelu_zero() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![0.0f32];
     let alpha_data = vec![0.5f32];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
@@ -55,7 +55,7 @@ fn test_prelu_zero() {
 
 #[test]
 fn test_prelu_positive() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![1.0f32, 2.0, 3.0, 4.0];
     let alpha_data = vec![0.1f32, 0.2, 0.3, 0.4];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
@@ -69,7 +69,7 @@ fn test_prelu_positive() {
 
 #[test]
 fn test_prelu_negative() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![-1.0f32, -2.0, -3.0];
     let alpha_data = vec![0.1f32, 0.2, 0.3];
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
@@ -88,7 +88,7 @@ fn test_prelu_negative() {
 
 #[test]
 fn test_prelu_2d() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data = vec![-1.0f32, 0.0, 1.0, -2.0, 0.0, 2.0];
     let alpha_data = vec![0.1f32, 0.2, 0.3, 0.4, 0.5, 0.6];
     let t = Tensor::<f32>::from_shape_slice(&ctx, &[2, 3], &data).unwrap();
@@ -109,7 +109,7 @@ fn test_prelu_2d() {
 #[test]
 #[allow(clippy::cast_precision_loss)]
 fn test_prelu_non_aligned() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let data: Vec<f32> = (-21_i8..21).map(|i| f32::from(i) * 0.1).collect();
     let alpha_data: Vec<f32> = (0..42).map(|i| 0.01 * (i as f32 + 1.0)).collect();
     let t = Tensor::<f32>::from_slice(&ctx, &data).unwrap();
@@ -129,7 +129,7 @@ fn test_prelu_non_aligned() {
 
 #[test]
 fn test_prelu_scalar() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let t = Tensor::<f32>::constant(&ctx, &[], &[0.0]).unwrap();
     let alpha = Tensor::<f32>::constant(&ctx, &[], &[0.5]).unwrap();
     let result = t.prelu(&alpha).unwrap();
@@ -139,7 +139,7 @@ fn test_prelu_scalar() {
 
 #[test]
 fn test_prelu_shape_mismatch() {
-    let ctx = Context::try_default().unwrap();
+    let ctx = Context::new().unwrap();
     let t = Tensor::<f32>::from_slice(&ctx, &[1.0, 2.0, 3.0]).unwrap();
     let alpha = Tensor::<f32>::from_slice(&ctx, &[0.1, 0.2]).unwrap();
     let result = t.prelu(&alpha);
