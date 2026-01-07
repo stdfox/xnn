@@ -70,6 +70,6 @@ fn test_debug() {
     let ctx = Context::new().unwrap();
     let debug = format!("{ctx:?}");
     assert!(debug.contains("Context"));
-    assert!(debug.contains("Allocator"));
-    assert!(debug.contains("PipelineCache"));
+    assert!(debug.contains("allocator"));
+    assert!(debug.contains("pipelines"));
 }

@@ -120,7 +120,7 @@ pub(crate) fn execute<T: NumericElement>(
 
     let params = ctx.create_uniform_buffer(&Params { rank, len });
 
-    let bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+    let bind_group = ctx.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some(Clamp::<T>::LABEL),
         layout: &pipeline.get_bind_group_layout(0),
         entries: &[

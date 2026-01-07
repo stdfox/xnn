@@ -55,7 +55,7 @@ pub(crate) fn execute<T: Element>(ctx: &Context, buffer: &Buffer<T>, value: &wgp
         Constant::<T>::LABEL,
     );
 
-    let bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+    let bind_group = ctx.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some(Constant::<T>::LABEL),
         layout: &pipeline.get_bind_group_layout(0),
         entries: &[

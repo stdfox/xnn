@@ -377,7 +377,7 @@ pub(crate) fn execute<T: FloatElement>(
     );
 
     let create_bind_group = |params_buf: &wgpu::Buffer| {
-        ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+        ctx.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some(Matmul::<T>::LABEL),
             layout: &pipeline.get_bind_group_layout(0),
             entries: &[

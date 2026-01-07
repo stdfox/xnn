@@ -97,7 +97,7 @@ fn execute<K: Kernel, T: Element>(
 
     let params = ctx.create_uniform_buffer(&Params { alpha, lambda });
 
-    let bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+    let bind_group = ctx.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some(K::LABEL),
         layout: &pipeline.get_bind_group_layout(0),
         entries: &[
@@ -216,7 +216,7 @@ pub(crate) mod prelu {
             Prelu::<T>::LABEL,
         );
 
-        let bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+        let bind_group = ctx.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some(Prelu::<T>::LABEL),
             layout: &pipeline.get_bind_group_layout(0),
             entries: &[

@@ -255,6 +255,11 @@ impl Context {
             .create_compute_pipeline(&self.0.device, id, shader, label)
     }
 
+    /// Creates a bind group for shader resources.
+    pub(crate) fn create_bind_group(&self, desc: &wgpu::BindGroupDescriptor) -> wgpu::BindGroup {
+        self.0.device.create_bind_group(desc)
+    }
+
     /// Creates a command encoder for recording device commands.
     pub(crate) fn create_command_encoder(
         &self,
@@ -268,11 +273,6 @@ impl Context {
     /// Submits command buffers to the device queue.
     pub(crate) fn submit(&self, commands: impl IntoIterator<Item = wgpu::CommandBuffer>) {
         self.0.queue.submit(commands);
-    }
-
-    /// Returns the wgpu device.
-    pub(crate) fn device(&self) -> &wgpu::Device {
-        &self.0.device
     }
 }
 

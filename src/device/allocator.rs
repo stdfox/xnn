@@ -147,12 +147,26 @@ impl core::fmt::Debug for Allocator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Context;
+
+    fn create_device() -> wgpu::Device {
+        pollster::block_on(async {
+            let instance = wgpu::Instance::default();
+            let adapter = instance
+                .request_adapter(&wgpu::RequestAdapterOptions::default())
+                .await
+                .unwrap();
+            let (device, _) = adapter
+                .request_device(&wgpu::DeviceDescriptor::default())
+                .await
+                .unwrap();
+            device
+        })
+    }
 
     #[test]
     fn test_allocate_new_buffer() {
-        let ctx = Context::new().unwrap();
-        let allocator = Allocator::new(ctx.device().clone());
+        let device = create_device();
+        let allocator = Allocator::new(device);
 
         let buffer = allocator.allocate(1).unwrap();
         assert_eq!(buffer.size(), allocator.min_buffer_size);
@@ -162,8 +176,8 @@ mod tests {
 
     #[test]
     fn test_release_and_reuse() {
-        let ctx = Context::new().unwrap();
-        let allocator = Allocator::new(ctx.device().clone());
+        let device = create_device();
+        let allocator = Allocator::new(device);
 
         let buffer = allocator.allocate(1).unwrap();
         assert_eq!(buffer.size(), allocator.min_buffer_size);
@@ -182,8 +196,8 @@ mod tests {
 
     #[test]
     fn test_memory_metrics() {
-        let ctx = Context::new().unwrap();
-        let allocator = Allocator::new(ctx.device().clone());
+        let device = create_device();
+        let allocator = Allocator::new(device);
 
         assert_eq!(allocator.memory_allocated(), 0);
         assert_eq!(allocator.memory_reserved(), 0);
@@ -212,8 +226,8 @@ mod tests {
 
     #[test]
     fn test_sizes() {
-        let ctx = Context::new().unwrap();
-        let allocator = Allocator::new(ctx.device().clone());
+        let device = create_device();
+        let allocator = Allocator::new(device);
 
         let buffer = allocator.allocate(allocator.min_buffer_size - 1).unwrap();
         assert_eq!(buffer.size(), allocator.min_buffer_size);

@@ -69,7 +69,7 @@ fn execute<K: Kernel, T: Element>(ctx: &Context, x: &Buffer<T>, y: &Buffer<T>) {
 
     let pipeline = ctx.create_compute_pipeline(TypeId::of::<K>(), K::wgsl, K::LABEL);
 
-    let bind_group = ctx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+    let bind_group = ctx.create_bind_group(&wgpu::BindGroupDescriptor {
         label: Some(K::LABEL),
         layout: &pipeline.get_bind_group_layout(0),
         entries: &[
