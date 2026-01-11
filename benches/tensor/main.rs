@@ -5,6 +5,7 @@ mod copy;
 mod linalg;
 mod math;
 mod nn;
+mod random;
 mod reduction;
 
 use std::time::Duration;
@@ -85,6 +86,9 @@ criterion::criterion_group!(
     // Constant/copy
     constant::bench_constant,
     copy::bench_copy,
+    // Random
+    random::bench_random_normal,
+    random::bench_random_uniform,
     // Linalg: matmul
     linalg::matmul::bench_matmul,
     linalg::matmul::bench_matmul_transpose,

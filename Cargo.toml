@@ -13,12 +13,18 @@ exclude = [".editorconfig", ".gitignore"]
 [dependencies]
 bytemuck = { version = "~1.24", default-features = false }
 futures-channel = { version = "~0.3", default-features = false, features = ["alloc"] }
+getrandom = { version = "~0.3", default-features = false }
+rand_distr = { version = "~0.5", default-features = false }
+rand_xoshiro = { version = "~0.7", default-features = false }
 spin = { version = "~0.10", default-features = false, features = ["rwlock", "spin_mutex"] }
 thiserror = { version = "~2.0", default-features = false }
 wgpu = { version = "~28.0", default-features = false, features = ["dx12", "gles", "metal", "naga-ir", "vulkan", "webgpu", "wgsl"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 pollster = { version = "~0.4", default-features = false }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "~0.3", default-features = false, features = ["wasm_js"] }
 
 [dev-dependencies]
 approx = { version = "~0.5", default-features = false }

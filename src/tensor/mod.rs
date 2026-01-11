@@ -3,7 +3,10 @@
 mod layout;
 
 use alloc::vec::Vec;
-use alloc::{format, vec};
+
+use rand_distr::{Distribution, Normal, Uniform};
+use rand_xoshiro::Xoshiro256PlusPlus;
+use rand_xoshiro::rand_core::SeedableRng;
 
 use crate::element::{FloatElement, IntegerElement, LogicalElement, NumericElement, SignedElement};
 use crate::error::{Error, TensorError};
@@ -49,7 +52,7 @@ impl<T: Element> Tensor<T> {
             }
             n if n == volume => ctx.create_buffer_from_slice(value)?,
             n => {
-                return Err(TensorError::InvalidShape(format!(
+                return Err(TensorError::InvalidShape(alloc::format!(
                     "value length {n} must be 1 or equal to shape volume {volume}"
                 ))
                 .into());
@@ -132,7 +135,7 @@ impl<T: Element> Tensor<T> {
     ) -> Result<Tensor<U>, Error> {
         let (dimensions, strides) =
             Layout::broadcast(&[&self.layout, &other.layout]).ok_or_else(|| {
-                TensorError::InvalidShape(format!(
+                TensorError::InvalidShape(alloc::format!(
                     "dimensions {:?} and {:?} are not broadcast-compatible",
                     self.dimensions(),
                     other.dimensions()
@@ -182,7 +185,7 @@ impl<T: NumericElement> Tensor<T> {
     pub fn clamp(&self, a: &Self, b: &Self) -> Result<Self, Error> {
         let (dimensions, strides) = Layout::broadcast(&[&self.layout, &a.layout, &b.layout])
             .ok_or_else(|| {
-                TensorError::InvalidShape(format!(
+                TensorError::InvalidShape(alloc::format!(
                     "dimensions {:?}, {:?}, and {:?} are not broadcast-compatible",
                     self.dimensions(),
                     a.dimensions(),
@@ -419,16 +422,18 @@ impl<T: NumericElement> Tensor<T> {
         let dimensions = self.layout.dimensions();
         let rank = dimensions.len();
 
-        let mut seen = vec![false; rank];
+        let mut seen = alloc::vec![false; rank];
         for &axis in axes {
             if axis >= rank {
-                return Err(TensorError::InvalidShape(format!(
+                return Err(TensorError::InvalidShape(alloc::format!(
                     "axis {axis} out of bounds for tensor with rank {rank}"
                 ))
                 .into());
             }
             if seen[axis] {
-                return Err(TensorError::InvalidShape(format!("duplicate axis {axis}")).into());
+                return Err(
+                    TensorError::InvalidShape(alloc::format!("duplicate axis {axis}")).into(),
+                );
             }
             seen[axis] = true;
         }
@@ -506,6 +511,99 @@ impl<T: IntegerElement> Tensor<T> {
 }
 
 impl<T: FloatElement> Tensor<T> {
+    /// Creates a tensor filled with random values from normal distribution.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` - GPU device context
+    /// * `shape` - Tensor dimensions
+    /// * `mean` - Mean of the distribution (default: 0.0)
+    /// * `scale` - Standard deviation (default: 1.0)
+    /// * `seed` - Random seed (auto-generated if None)
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if any dimension is zero.
+    /// - [`Error::Device`] if GPU operation fails.
+    ///
+    /// # Panics
+    ///
+    /// - If `seed` is `None` and system entropy source fails.
+    pub fn random_normal(
+        ctx: &Context,
+        shape: &[usize],
+        mean: Option<T>,
+        scale: Option<T>,
+        seed: Option<T>,
+    ) -> Result<Self, Error> {
+        let layout = Layout::from_dimensions(shape)?;
+        let len = layout.size();
+
+        let mean = mean.map_or(0.0, T::to_f64);
+        let scale = scale.map_or(1.0, T::to_f64);
+        let seed = seed.map_or_else(Self::generate_seed, |s| s.to_f64().to_bits());
+
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+        let normal = Normal::new(mean, scale).unwrap();
+        let data: Vec<T> = (0..len)
+            .map(|_| T::from_f64(normal.sample(&mut rng)))
+            .collect();
+        let buffer = ctx.create_buffer_from_slice(&data)?;
+
+        Ok(Self {
+            buffer,
+            layout,
+            ctx: ctx.clone(),
+        })
+    }
+
+    /// Creates a tensor filled with random values from uniform distribution.
+    ///
+    /// # Arguments
+    ///
+    /// * `ctx` - GPU device context
+    /// * `shape` - Tensor dimensions
+    /// * `low` - Lower boundary (default: 0.0)
+    /// * `high` - Upper boundary (default: 1.0)
+    /// * `seed` - Random seed (auto-generated if None)
+    ///
+    /// # Errors
+    ///
+    /// - [`TensorError::InvalidShape`] if any dimension is zero.
+    /// - [`Error::Device`] if GPU operation fails.
+    ///
+    /// # Panics
+    ///
+    /// - If `seed` is `None` and system entropy source fails.
+    /// - If `low >= high`, or if `low`, `high`, or `high - low` is non-finite.
+    pub fn random_uniform(
+        ctx: &Context,
+        shape: &[usize],
+        low: Option<T>,
+        high: Option<T>,
+        seed: Option<T>,
+    ) -> Result<Self, Error> {
+        let layout = Layout::from_dimensions(shape)?;
+        let len = layout.size();
+
+        let low = low.map_or(0.0, T::to_f64);
+        let high = high.map_or(1.0, T::to_f64);
+        let seed = seed.map_or_else(Self::generate_seed, |s| s.to_f64().to_bits());
+
+        let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
+        let uniform = Uniform::new(low, high).expect("low >= high or range is non-finite");
+        let data: Vec<T> = (0..len)
+            .map(|_| T::from_f64(uniform.sample(&mut rng)))
+            .collect();
+        let buffer = ctx.create_buffer_from_slice(&data)?;
+
+        Ok(Self {
+            buffer,
+            layout,
+            ctx: ctx.clone(),
+        })
+    }
+
     /// Batched matrix multiplication with optional transposes.
     ///
     /// `A[..., m, k] × B[..., k, n] → C[..., m, n]`
@@ -534,7 +632,7 @@ impl<T: FloatElement> Tensor<T> {
         }
 
         if rank != b_dims.len() {
-            return Err(TensorError::InvalidShape(format!(
+            return Err(TensorError::InvalidShape(alloc::format!(
                 "matmul requires equal ranks, got {} and {}",
                 rank,
                 b_dims.len()
@@ -557,7 +655,7 @@ impl<T: FloatElement> Tensor<T> {
         };
 
         if a_k != b_k {
-            return Err(TensorError::InvalidShape(format!(
+            return Err(TensorError::InvalidShape(alloc::format!(
                 "matmul inner dimensions don't match: {a_k} vs {b_k}"
             ))
             .into());
@@ -570,7 +668,7 @@ impl<T: FloatElement> Tensor<T> {
                 (a, b) if a == b => Ok(a),
                 (1, b) => Ok(b),
                 (a, 1) => Ok(a),
-                _ => Err(TensorError::InvalidShape(format!(
+                _ => Err(TensorError::InvalidShape(alloc::format!(
                     "batch dimensions not broadcast-compatible: {da} vs {db}"
                 ))),
             })
@@ -867,7 +965,7 @@ impl<T: FloatElement> Tensor<T> {
     /// - [`Error::Device`] if buffer allocation fails.
     pub fn prelu(&self, alpha: &Self) -> Result<Self, Error> {
         if self.dimensions() != alpha.dimensions() {
-            return Err(TensorError::InvalidShape(format!(
+            return Err(TensorError::InvalidShape(alloc::format!(
                 "prelu shape mismatch: {:?} vs {:?}",
                 self.dimensions(),
                 alpha.dimensions()
@@ -929,6 +1027,17 @@ impl<T: FloatElement> Tensor<T> {
         self.nn_activation(ops::softplus)
     }
 
+    /// Generates seed from system entropy.
+    ///
+    /// # Panics
+    ///
+    /// Panics if system entropy source fails.
+    fn generate_seed() -> u64 {
+        let mut buf = [0u8; 8];
+        getrandom::fill(&mut buf).expect("failed to get random bytes");
+        u64::from_le_bytes(buf)
+    }
+
     /// Applies an activation operation.
     fn nn_activation(
         &self,
@@ -936,6 +1045,7 @@ impl<T: FloatElement> Tensor<T> {
     ) -> Result<Self, Error> {
         let buffer = self.ctx.create_buffer(self.buffer.len())?;
         op(&self.ctx, &self.buffer, &buffer);
+
         Ok(Self {
             buffer,
             layout: self.layout.clone(),
@@ -960,7 +1070,7 @@ impl<T: LogicalElement> Tensor<T> {
     ) -> Result<Tensor<U>, Error> {
         let (dimensions, strides) = Layout::broadcast(&[&self.layout, &a.layout, &b.layout])
             .ok_or_else(|| {
-                TensorError::InvalidShape(format!(
+                TensorError::InvalidShape(alloc::format!(
                     "dimensions {:?}, {:?}, and {:?} are not broadcast-compatible",
                     self.dimensions(),
                     a.dimensions(),

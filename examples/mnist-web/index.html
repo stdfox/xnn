@@ -101,19 +101,51 @@
 
         function getPixelData() {
             const imageData = ctx.getImageData(0, 0, 280, 280);
+
+            // Find bounding box of drawn content
+            let minX = 280, minY = 280, maxX = 0, maxY = 0;
+            for (let y = 0; y < 280; y++) {
+                for (let x = 0; x < 280; x++) {
+                    if (imageData.data[(y * 280 + x) * 4 + 3] > 0) {
+                        minX = Math.min(minX, x);
+                        minY = Math.min(minY, y);
+                        maxX = Math.max(maxX, x);
+                        maxY = Math.max(maxY, y);
+                    }
+                }
+            }
+
+            // Handle empty canvas
+            if (minX > maxX) return new Float32Array(784);
+
+            // Calculate scaling to fit in 20x20
+            const bboxW = maxX - minX + 1;
+            const bboxH = maxY - minY + 1;
+            const scale = 20 / Math.max(bboxW, bboxH);
+            const scaledW = Math.round(bboxW * scale);
+            const scaledH = Math.round(bboxH * scale);
+
+            // Calculate offset to center in 28x28
+            const offsetX = Math.floor((28 - scaledW) / 2);
+            const offsetY = Math.floor((28 - scaledH) / 2);
+
+            // Resample into 28x28 centered output
             const pixels = new Float32Array(784);
             for (let y = 0; y < 28; y++) {
                 for (let x = 0; x < 28; x++) {
-                    let sum = 0;
-                    for (let dy = 0; dy < 10; dy++) {
-                        for (let dx = 0; dx < 10; dx++) {
-                            const i = ((y * 10 + dy) * 280 + (x * 10 + dx)) * 4;
-                            sum += imageData.data[i + 3];
+                    const srcX = minX + (x - offsetX) / scale;
+                    const srcY = minY + (y - offsetY) / scale;
+
+                    if (srcX >= minX && srcX <= maxX && srcY >= minY && srcY <= maxY) {
+                        const px = Math.floor(srcX);
+                        const py = Math.floor(srcY);
+                        if (px >= 0 && px < 280 && py >= 0 && py < 280) {
+                            pixels[y * 28 + x] = imageData.data[(py * 280 + px) * 4 + 3] / 255;
                         }
                     }
-                    pixels[y * 28 + x] = sum / (100 * 255);
                 }
             }
+
             return pixels;
         }
 

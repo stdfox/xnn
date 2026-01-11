@@ -7,6 +7,7 @@ mod from_slice;
 mod linalg;
 mod math;
 mod nn;
+mod random;
 mod reduction;
 
 use core::fmt::Debug;

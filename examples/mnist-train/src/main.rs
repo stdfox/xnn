@@ -169,23 +169,26 @@ struct Model {
 
 impl Model {
     fn new(ctx: &Context) -> Result<Self, Error> {
-        let mut rng = rand::rng();
-
-        // Xavier initialization
+        // He initialization: uniform(-scale, scale) where scale = sqrt(2/fan_in)
         let w1_scale = (2.0 / INPUT_SIZE as f32).sqrt();
         let w2_scale = (2.0 / HIDDEN_SIZE as f32).sqrt();
 
-        let w1_data: Vec<f32> = (0..INPUT_SIZE * HIDDEN_SIZE)
-            .map(|_| rng.random::<f32>() * 2.0 * w1_scale - w1_scale)
-            .collect();
-        let w2_data: Vec<f32> = (0..HIDDEN_SIZE * OUTPUT_SIZE)
-            .map(|_| rng.random::<f32>() * 2.0 * w2_scale - w2_scale)
-            .collect();
-
         Ok(Self {
-            w1: Tensor::from_shape_slice(ctx, &[INPUT_SIZE, HIDDEN_SIZE], &w1_data)?,
+            w1: Tensor::random_uniform(
+                ctx,
+                &[INPUT_SIZE, HIDDEN_SIZE],
+                Some(-w1_scale),
+                Some(w1_scale),
+                None,
+            )?,
             b1: Tensor::constant(ctx, &[1, HIDDEN_SIZE], &[0.0])?,
-            w2: Tensor::from_shape_slice(ctx, &[HIDDEN_SIZE, OUTPUT_SIZE], &w2_data)?,
+            w2: Tensor::random_uniform(
+                ctx,
+                &[HIDDEN_SIZE, OUTPUT_SIZE],
+                Some(-w2_scale),
+                Some(w2_scale),
+                None,
+            )?,
             b2: Tensor::constant(ctx, &[1, OUTPUT_SIZE], &[0.0])?,
         })
     }
@@ -284,7 +287,7 @@ fn compute_accuracy(probs: &[f32], labels: &[u8]) -> f32 {
     let batch_size = labels.len();
     let mut correct = 0;
 
-    for i in 0..batch_size {
+    for (i, &label) in labels.iter().enumerate() {
         let start = i * OUTPUT_SIZE;
         let pred = probs[start..start + OUTPUT_SIZE]
             .iter()
@@ -293,7 +296,7 @@ fn compute_accuracy(probs: &[f32], labels: &[u8]) -> f32 {
             .map(|(idx, _)| idx)
             .unwrap();
 
-        if pred == labels[i] as usize {
+        if pred == label as usize {
             correct += 1;
         }
     }

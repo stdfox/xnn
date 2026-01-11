@@ -1,6 +1,6 @@
 //! XOR neural network example.
 //!
-//! Learns XOR function using a 2-layer neural network (2 -> 2 -> 1).
+//! Learns XOR function using a 2-layer neural network (2 -> 4 -> 1).
 
 use xnn::{Context, Error, Tensor};
 
@@ -10,7 +10,7 @@ struct Config {
     epochs: usize,
 }
 
-/// Neural network model (2 -> 2 -> 1).
+/// Neural network model (2 -> 4 -> 1).
 struct Model {
     w1: Tensor<f32>,
     b1: Tensor<f32>,
@@ -21,9 +21,9 @@ struct Model {
 impl Model {
     fn new(ctx: &Context) -> Result<Self, Error> {
         Ok(Self {
-            w1: Tensor::from_shape_slice(ctx, &[2, 2], &[0.5, -0.5, -0.5, 0.5])?,
-            b1: Tensor::constant(ctx, &[1, 2], &[0.0])?,
-            w2: Tensor::from_shape_slice(ctx, &[2, 1], &[1.0, 1.0])?,
+            w1: Tensor::random_normal(ctx, &[2, 4], None, Some(0.5), None)?,
+            b1: Tensor::constant(ctx, &[1, 4], &[0.0])?,
+            w2: Tensor::random_normal(ctx, &[4, 1], None, Some(0.5), None)?,
             b2: Tensor::constant(ctx, &[1, 1], &[0.0])?,
         })
     }
@@ -53,7 +53,7 @@ impl Model {
         a2: &Tensor<f32>,
         lr: &Tensor<f32>,
     ) -> Result<Tensor<f32>, Error> {
-        let ones = Tensor::constant(ctx, &[4, 2], &[1.0])?;
+        let ones = Tensor::constant(ctx, &[4, 4], &[1.0])?;
 
         // Output error: d2 = a2 - y
         let d2 = a2.sub(y)?;
@@ -145,7 +145,7 @@ fn main() -> Result<(), Box<dyn core::error::Error>> {
     let mut model = Model::new(&ctx)?;
     let lr = Tensor::constant(&ctx, &[1], &[cfg.learning_rate / 4.0])?;
 
-    println!("Training XOR neural network: 2 -> 2 -> 1");
+    println!("Training XOR neural network: 2 -> 4 -> 1");
     println!("Learning rate: {}\n", cfg.learning_rate);
 
     for epoch in 0..cfg.epochs {

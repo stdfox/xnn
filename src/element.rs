@@ -224,9 +224,28 @@ impl IntegerElement for i32 {}
 impl IntegerElement for u32 {}
 
 /// Trait for floating-point GPU-compatible types.
-pub trait FloatElement: Element {}
+pub trait FloatElement: Element {
+    /// Converts from f64.
+    #[must_use]
+    fn from_f64(value: f64) -> Self;
 
-impl FloatElement for f32 {}
+    /// Converts to f64.
+    #[must_use]
+    fn to_f64(self) -> f64;
+}
+
+impl FloatElement for f32 {
+    #[inline]
+    #[allow(clippy::cast_possible_truncation)]
+    fn from_f64(value: f64) -> Self {
+        value as f32
+    }
+
+    #[inline]
+    fn to_f64(self) -> f64 {
+        f64::from(self)
+    }
+}
 
 /// Trait for logical GPU-compatible types.
 pub trait LogicalElement: Element {}

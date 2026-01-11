@@ -19,8 +19,8 @@ struct Model {
 
 impl Model {
     fn new(ctx: &Context) -> Result<Self, Error> {
-        let w = Tensor::constant(ctx, &[1], &[0.0])?;
-        let b = Tensor::constant(ctx, &[1], &[0.0])?;
+        let w = Tensor::random_uniform(ctx, &[1], Some(-1.0), Some(1.0), None)?;
+        let b = Tensor::random_uniform(ctx, &[1], Some(-1.0), Some(1.0), None)?;
         Ok(Self { w, b })
     }
 
